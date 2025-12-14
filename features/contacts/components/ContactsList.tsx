@@ -1,0 +1,317 @@
+import React from 'react';
+import { Building2, Mail, Phone, Plus, Calendar, Pencil, Trash2, Globe, MoreHorizontal, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Contact, Company, ContactSortableColumn } from '@/types';
+import { StageBadge } from './ContactsStageTabs';
+
+/**
+ * Formata uma data para exibição relativa (ex: "Hoje", "Ontem", "Há 3 dias", "15/11/2024")
+ */
+function formatRelativeDate(dateString: string | undefined | null): string {
+    if (!dateString) return '---';
+    
+    const date = new Date(dateString);
+    const now = new Date();
+    
+    // Reset hours for accurate day comparison
+    const dateDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    const diffTime = today.getTime() - dateDay.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'Hoje';
+    if (diffDays === 1) return 'Ontem';
+    if (diffDays < 7) return `Há ${diffDays} dias`;
+    if (diffDays < 30) return `Há ${Math.floor(diffDays / 7)} sem.`;
+    
+    // For older dates, show the actual date
+    return date.toLocaleDateString('pt-BR');
+}
+
+/** Props for sortable column header */
+interface SortableHeaderProps {
+    label: string;
+    column: ContactSortableColumn;
+    currentSort: ContactSortableColumn;
+    sortOrder: 'asc' | 'desc';
+    onSort: (column: ContactSortableColumn) => void;
+}
+
+/** Sortable column header component */
+const SortableHeader: React.FC<SortableHeaderProps> = ({ label, column, currentSort, sortOrder, onSort }) => {
+    const isActive = currentSort === column;
+    
+    return (
+        <th scope="col" className="px-6 py-4">
+            <button
+                onClick={() => onSort(column)}
+                className="flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-200 font-display text-xs uppercase tracking-wider hover:text-primary-600 dark:hover:text-primary-400 transition-colors group"
+                aria-label={`Ordenar por ${label}`}
+            >
+                {label}
+                <span className={`transition-opacity ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-50'}`}>
+                    {isActive ? (
+                        sortOrder === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
+                    ) : (
+                        <ArrowUpDown size={14} />
+                    )}
+                </span>
+            </button>
+        </th>
+    );
+};
+
+interface ContactsListProps {
+    viewMode: 'people' | 'companies';
+    filteredContacts: Contact[];
+    filteredCompanies: Company[];
+    contacts: Contact[]; // Needed for company view avatar grouping
+    selectedIds: Set<string>;
+    toggleSelect: (id: string) => void;
+    toggleSelectAll: () => void;
+    getCompanyName: (id: string | undefined | null) => string;
+    updateContact: (id: string, data: Partial<Contact>) => void;
+    convertContactToDeal: (id: string) => void;
+    openEditModal: (contact: Contact) => void;
+    setDeleteId: (id: string) => void;
+    // Sorting props
+    sortBy?: ContactSortableColumn;
+    sortOrder?: 'asc' | 'desc';
+    onSort?: (column: ContactSortableColumn) => void;
+}
+
+export const ContactsList: React.FC<ContactsListProps> = ({
+    viewMode,
+    filteredContacts,
+    filteredCompanies,
+    contacts,
+    selectedIds,
+    toggleSelect,
+    toggleSelectAll,
+    getCompanyName,
+    updateContact,
+    convertContactToDeal,
+    openEditModal,
+    setDeleteId,
+    sortBy = 'created_at',
+    sortOrder = 'desc',
+    onSort,
+}) => {
+    const allSelected = filteredContacts.length > 0 && selectedIds.size === filteredContacts.length;
+    const someSelected = selectedIds.size > 0 && selectedIds.size < filteredContacts.length;
+    
+    return (
+        <div className="glass rounded-xl border border-slate-200 dark:border-white/5 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+                {viewMode === 'people' ? (
+                    <table className="w-full text-left text-sm">
+                        <thead className="bg-slate-50/80 dark:bg-white/5 border-b border-slate-200 dark:border-white/5">
+                            <tr>
+                                <th scope="col" className="w-12 px-6 py-4">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={allSelected}
+                                        ref={(el) => { if (el) el.indeterminate = someSelected; }}
+                                        onChange={toggleSelectAll}
+                                        aria-label={allSelected ? 'Desmarcar todos os contatos' : 'Selecionar todos os contatos'}
+                                        className="rounded border-slate-300 text-primary-600 focus:ring-primary-500 dark:bg-white/5 dark:border-white/10" 
+                                    />
+                                </th>
+                                {onSort ? (
+                                    <SortableHeader label="Nome" column="name" currentSort={sortBy} sortOrder={sortOrder} onSort={onSort} />
+                                ) : (
+                                    <th scope="col" className="px-6 py-4 font-bold text-slate-700 dark:text-slate-200 font-display text-xs uppercase tracking-wider">Nome</th>
+                                )}
+                                <th scope="col" className="px-6 py-4 font-bold text-slate-700 dark:text-slate-200 font-display text-xs uppercase tracking-wider">Estágio</th>
+                                <th scope="col" className="px-6 py-4 font-bold text-slate-700 dark:text-slate-200 font-display text-xs uppercase tracking-wider">Cargo / Empresa</th>
+                                <th scope="col" className="px-6 py-4 font-bold text-slate-700 dark:text-slate-200 font-display text-xs uppercase tracking-wider">Contato</th>
+                                <th scope="col" className="px-6 py-4 font-bold text-slate-700 dark:text-slate-200 font-display text-xs uppercase tracking-wider">Status</th>
+                                {onSort ? (
+                                    <SortableHeader label="Criado" column="created_at" currentSort={sortBy} sortOrder={sortOrder} onSort={onSort} />
+                                ) : (
+                                    <th scope="col" className="px-6 py-4 font-bold text-slate-700 dark:text-slate-200 font-display text-xs uppercase tracking-wider">Criado</th>
+                                )}
+                                {onSort ? (
+                                    <SortableHeader label="Modificado" column="updated_at" currentSort={sortBy} sortOrder={sortOrder} onSort={onSort} />
+                                ) : (
+                                    <th scope="col" className="px-6 py-4 font-bold text-slate-700 dark:text-slate-200 font-display text-xs uppercase tracking-wider">Modificado</th>
+                                )}
+                                <th scope="col" className="px-6 py-4 font-bold text-slate-700 dark:text-slate-200 font-display text-xs uppercase tracking-wider"><span className="sr-only">Ações</span></th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+                            {filteredContacts.map((contact) => (
+                                <tr key={contact.id} className={`hover:bg-slate-50/50 dark:hover:bg-white/5 transition-colors group ${selectedIds.has(contact.id) ? 'bg-primary-50/50 dark:bg-primary-900/10' : ''}`}>
+                                    <td className="px-6 py-4">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={selectedIds.has(contact.id)}
+                                            onChange={() => toggleSelect(contact.id)}
+                                            aria-label={`Selecionar ${contact.name}`}
+                                            className="rounded border-slate-300 text-primary-600 focus:ring-primary-500 dark:bg-white/5 dark:border-white/10" 
+                                        />
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-100 to-primary-200 dark:from-primary-900 dark:to-primary-800 text-primary-700 dark:text-primary-200 flex items-center justify-center font-bold text-sm shadow-sm ring-2 ring-white dark:ring-white/5">
+                                                {(contact.name || '?').charAt(0)}
+                                            </div>
+                                            <div>
+                                                <span className="font-semibold text-slate-900 dark:text-white block">{contact.name}</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <StageBadge stage={contact.stage} />
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div>
+                                            <span className="text-slate-900 dark:text-white font-medium block">{contact.role || 'Cargo não inf.'}</span>
+                                            <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                                <Building2 size={10} />
+                                                <span>{getCompanyName(contact.clientCompanyId)}</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex flex-col gap-1">
+                                            <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400 text-xs">
+                                                <Mail size={12} /> {contact.email || '---'}
+                                            </div>
+                                            <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400 text-xs">
+                                                <Phone size={12} /> {contact.phone || '---'}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => {
+                                                    const nextStatus = contact.status === 'ACTIVE' ? 'INACTIVE' : contact.status === 'INACTIVE' ? 'CHURNED' : 'ACTIVE';
+                                                    updateContact(contact.id, { status: nextStatus });
+                                                }}
+                                                aria-label={`Alterar status de ${contact.name} de ${contact.status === 'ACTIVE' ? 'ativo' : contact.status === 'INACTIVE' ? 'inativo' : 'perdido'}`}
+                                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full border transition-all ${contact.status === 'ACTIVE' ? 'bg-green-100 text-green-700 border-green-200 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/20' :
+                                                    contact.status === 'INACTIVE' ? 'bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-500/10 dark:text-yellow-400 dark:border-yellow-500/20' :
+                                                        'bg-red-100 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20'
+                                                    }`}
+                                            >
+                                                {contact.status === 'ACTIVE' ? 'ATIVO' : contact.status === 'INACTIVE' ? 'INATIVO' : 'PERDIDO'}
+                                            </button>
+                                            <button
+                                                onClick={() => convertContactToDeal(contact.id)}
+                                                className="p-1 text-slate-400 hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20 rounded transition-colors"
+                                                aria-label={`Criar oportunidade para ${contact.name}`}
+                                            >
+                                                <Plus size={14} aria-hidden="true" />
+                                            </button>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400 text-xs" title={contact.createdAt ? new Date(contact.createdAt).toLocaleString('pt-BR') : undefined}>
+                                            <Calendar size={14} className="text-slate-400" />
+                                            <span>{formatRelativeDate(contact.createdAt)}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400 text-xs" title={contact.updatedAt ? new Date(contact.updatedAt).toLocaleString('pt-BR') : undefined}>
+                                            <Calendar size={14} className="text-slate-400" />
+                                            <span>{formatRelativeDate(contact.updatedAt)}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                                            <button
+                                                onClick={() => openEditModal(contact)}
+                                                className="p-1.5 text-slate-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded transition-colors"
+                                                aria-label={`Editar ${contact.name}`}
+                                            >
+                                                <Pencil size={16} aria-hidden="true" />
+                                            </button>
+                                            <button
+                                                onClick={() => setDeleteId(contact.id)}
+                                                className="p-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded text-slate-400 hover:text-red-500 transition-colors"
+                                                aria-label={`Excluir ${contact.name}`}
+                                            >
+                                                <Trash2 size={16} aria-hidden="true" />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                ) : (
+                    <table className="w-full text-left text-sm">
+                        <thead className="bg-slate-50/80 dark:bg-white/5 border-b border-slate-200 dark:border-white/5">
+                            <tr>
+                                <th scope="col" className="w-12 px-6 py-4">
+                                    <input type="checkbox" aria-label="Selecionar todas as empresas" className="rounded border-slate-300 text-primary-600 focus:ring-primary-500 dark:bg-white/5 dark:border-white/10" />
+                                </th>
+                                <th scope="col" className="px-6 py-4 font-bold text-slate-700 dark:text-slate-200 font-display text-xs uppercase tracking-wider">Empresa</th>
+                                <th scope="col" className="px-6 py-4 font-bold text-slate-700 dark:text-slate-200 font-display text-xs uppercase tracking-wider">Setor</th>
+                                <th scope="col" className="px-6 py-4 font-bold text-slate-700 dark:text-slate-200 font-display text-xs uppercase tracking-wider">Criado em</th>
+                                <th scope="col" className="px-6 py-4 font-bold text-slate-700 dark:text-slate-200 font-display text-xs uppercase tracking-wider">Pessoas Vinc.</th>
+                                <th scope="col" className="px-6 py-4 font-bold text-slate-700 dark:text-slate-200 font-display text-xs uppercase tracking-wider"><span className="sr-only">Ações</span></th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+                            {filteredCompanies.map((company) => (
+                                <tr key={company.id} className="hover:bg-slate-50/50 dark:hover:bg-white/5 transition-colors group">
+                                    <td className="px-6 py-4">
+                                        <input type="checkbox" aria-label={`Selecionar ${company.name}`} className="rounded border-slate-300 text-primary-600 focus:ring-primary-500 dark:bg-white/5 dark:border-white/10" />
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-white/10 flex items-center justify-center text-slate-500 dark:text-slate-400 shadow-sm">
+                                                <Building2 size={18} />
+                                            </div>
+                                            <div>
+                                                <span className="font-semibold text-slate-900 dark:text-white block">{company.name}</span>
+                                                {company.website && (
+                                                    <a href={`https://${company.website}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary-500 hover:underline flex items-center gap-1">
+                                                        <Globe size={10} /> {company.website}
+                                                    </a>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <span className="px-2 py-1 rounded bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 text-xs font-medium">
+                                            {company.industry || 'Indefinido'}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <span className="text-slate-600 dark:text-slate-400 text-xs">
+                                            {new Date(company.createdAt).toLocaleDateString('pt-BR')}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex -space-x-2 overflow-hidden">
+                                            {contacts.filter(c => c.clientCompanyId === company.id).map(c => (
+                                                <div key={c.id} className="h-6 w-6 rounded-full ring-2 ring-white dark:ring-dark-card bg-primary-100 dark:bg-primary-900 flex items-center justify-center text-[10px] font-bold text-primary-700 dark:text-primary-300" title={c.name || 'Sem nome'}>
+                                                    {(c.name || '?').charAt(0)}
+                                                </div>
+                                            ))}
+                                            {contacts.filter(c => c.clientCompanyId === company.id).length === 0 && (
+                                                <span className="text-slate-400 text-xs italic">Ninguém</span>
+                                            )}
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                        <button
+                                            aria-label={`Mais opções para ${company.name}`}
+                                            className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white opacity-0 group-hover:opacity-100 transition-all"
+                                        >
+                                            <MoreHorizontal size={16} aria-hidden="true" />
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
+            </div>
+        </div>
+    );
+};

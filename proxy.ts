@@ -1,0 +1,39 @@
+/**
+ * Next.js 16+ Proxy (ex-"middleware")
+ *
+ * Convenção oficial:
+ * - Este arquivo precisa se chamar `proxy.ts|js` e ficar na raiz (ou em `src/`).
+ * - Deve exportar APENAS uma função (default export ou named `proxy`).
+ * - Pode exportar `config.matcher` para limitar onde roda.
+ *
+ * Referência: https://nextjs.org/docs/app/api-reference/file-conventions/proxy
+ *
+ * Neste projeto, o Proxy é usado só para:
+ * - refresh de sessão do Supabase SSR
+ * - redirects de páginas protegidas para `/login`
+ *
+ * Importante:
+ * - NÃO queremos interceptar `/api/*` aqui, porque Route Handlers já tratam auth
+ *   e um redirect 307 para /login quebra clientes (ex: fetch do chat).
+ */
+
+import { type NextRequest } from 'next/server'
+import { updateSession } from '@/lib/supabase/middleware'
+
+export async function proxy(request: NextRequest) {
+    return await updateSession(request)
+}
+
+export const config = {
+    matcher: [
+        /*
+         * Match all request paths exceto:
+         * - api (Route Handlers)
+         * - _next/static, _next/image
+         * - _next/data (mesmo excluindo, o Next pode ainda invocar o Proxy para /_next/data por segurança)
+         * - arquivos de metadata
+         * - assets (imagens)
+         */
+        '/((?!api|_next/static|_next/image|_next/data|favicon.ico|sitemap.xml|robots.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    ],
+}

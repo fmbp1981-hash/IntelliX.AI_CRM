@@ -1,0 +1,436 @@
+import React, {
+  createContext,
+  useContext,
+  useMemo,
+  useState,
+  useEffect,
+  useCallback,
+  ReactNode,
+} from 'react';
+import { LifecycleStage, Product, CustomFieldDefinition, Lead } from '@/types';
+import { settingsService, lifecycleStagesService } from '@/lib/supabase';
+import { useAuth } from '../AuthContext';
+
+const DEFAULT_LIFECYCLE_STAGES: LifecycleStage[] = [
+  { id: 'LEAD', name: 'Lead', color: 'bg-blue-500', order: 0, isDefault: true },
+  { id: 'MQL', name: 'MQL', color: 'bg-yellow-500', order: 1, isDefault: true },
+  { id: 'PROSPECT', name: 'Oportunidade', color: 'bg-purple-500', order: 2, isDefault: true },
+  { id: 'CUSTOMER', name: 'Cliente', color: 'bg-green-500', order: 3, isDefault: true },
+  { id: 'OTHER', name: 'Outros / Perdidos', color: 'bg-slate-500', order: 4, isDefault: true },
+];
+
+interface AIConfig {
+  provider: 'google' | 'openai' | 'anthropic';
+  apiKey: string;
+  model: string;
+  thinking: boolean;
+  search: boolean;
+  anthropicCaching: boolean;
+}
+
+interface SettingsContextType {
+  // Loading state
+  loading: boolean;
+  error: string | null;
+
+  // Lifecycle Stages
+  lifecycleStages: LifecycleStage[];
+  addLifecycleStage: (stage: Omit<LifecycleStage, 'id' | 'order'>) => Promise<LifecycleStage | null>;
+  updateLifecycleStage: (id: string, updates: Partial<LifecycleStage>) => Promise<void>;
+  deleteLifecycleStage: (id: string, contacts: any[]) => Promise<void>;
+  reorderLifecycleStages: (newOrder: LifecycleStage[]) => Promise<void>;
+
+  // Products (TODO: migrate to Supabase)
+  products: Product[];
+
+  // Custom Fields (TODO: migrate to Supabase)
+  customFieldDefinitions: CustomFieldDefinition[];
+  addCustomField: (field: Omit<CustomFieldDefinition, 'id'>) => void;
+  updateCustomField: (id: string, updates: Partial<CustomFieldDefinition>) => void;
+  removeCustomField: (id: string) => void;
+
+  // Tags (TODO: migrate to Supabase)
+  availableTags: string[];
+  addTag: (tag: string) => void;
+  removeTag: (tag: string) => void;
+
+  // AI Config
+  aiProvider: AIConfig['provider'];
+  setAiProvider: (provider: AIConfig['provider']) => Promise<void>;
+  aiApiKey: string; // Current key (based on provider)
+  setAiApiKey: (key: string) => Promise<void>;
+  aiGoogleKey: string;
+  aiOpenaiKey: string;
+  aiAnthropicKey: string;
+  aiModel: string;
+  setAiModel: (model: string) => Promise<void>;
+  aiThinking: boolean;
+  setAiThinking: (enabled: boolean) => Promise<void>;
+  aiSearch: boolean;
+  setAiSearch: (enabled: boolean) => Promise<void>;
+  aiAnthropicCaching: boolean;
+  setAiAnthropicCaching: (enabled: boolean) => Promise<void>;
+
+  // UI State
+  isGlobalAIOpen: boolean;
+  setIsGlobalAIOpen: (isOpen: boolean) => void;
+
+  // Legacy Leads (deprecated - kept for compatibility)
+  leads: Lead[];
+  setLeads: React.Dispatch<React.SetStateAction<Lead[]>>;
+  addLead: (lead: Lead) => void;
+  updateLead: (id: string, updates: Partial<Lead>) => void;
+  discardLead: (id: string) => void;
+
+  // Refresh
+  refresh: () => Promise<void>;
+}
+
+const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
+
+export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const { profile } = useAuth();
+
+  // State
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [lifecycleStages, setLifecycleStages] = useState<LifecycleStage[]>(DEFAULT_LIFECYCLE_STAGES);
+  const [products] = useState<Product[]>([]);
+  const [customFieldDefinitions, setCustomFieldDefinitions] = useState<CustomFieldDefinition[]>([]);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [leads, setLeads] = useState<Lead[]>([]);
+
+  // AI Config state - separate keys per provider
+  const [aiProvider, setAiProviderState] = useState<AIConfig['provider']>('google');
+  const [aiGoogleKey, setAiGoogleKeyState] = useState<string>('');
+  const [aiOpenaiKey, setAiOpenaiKeyState] = useState<string>('');
+  const [aiAnthropicKey, setAiAnthropicKeyState] = useState<string>('');
+  const [aiModel, setAiModelState] = useState<string>('gemini-2.5-flash');
+  const [aiThinking, setAiThinkingState] = useState<boolean>(true);
+  const [aiSearch, setAiSearchState] = useState<boolean>(true);
+  const [aiAnthropicCaching, setAiAnthropicCachingState] = useState<boolean>(false);
+
+  // Computed: current API key based on provider
+  const aiApiKey = useMemo(() => {
+    switch (aiProvider) {
+      case 'google': return aiGoogleKey;
+      case 'openai': return aiOpenaiKey;
+      case 'anthropic': return aiAnthropicKey;
+      default: return '';
+    }
+  }, [aiProvider, aiGoogleKey, aiOpenaiKey, aiAnthropicKey]);
+
+  // UI State
+  const [isGlobalAIOpen, setIsGlobalAIOpen] = useState(false);
+
+  // Fetch settings on mount
+  const fetchSettings = useCallback(async () => {
+    if (!profile) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Fetch user settings
+      const { data: settings } = await settingsService.get();
+      if (settings) {
+        setAiProviderState(settings.aiProvider);
+        setAiGoogleKeyState(settings.aiGoogleKey);
+        setAiOpenaiKeyState(settings.aiOpenaiKey);
+        setAiAnthropicKeyState(settings.aiAnthropicKey);
+        setAiModelState(settings.aiModel);
+        setAiThinkingState(settings.aiThinking);
+        setAiSearchState(settings.aiSearch);
+        setAiAnthropicCachingState(settings.aiAnthropicCaching);
+      }
+
+      // Fetch lifecycle stages
+      const { data: stages } = await lifecycleStagesService.getAll();
+      if (stages && stages.length > 0) {
+        setLifecycleStages(stages);
+      }
+    } catch (e) {
+      console.error('Error fetching settings:', e);
+      setError(e instanceof Error ? e.message : 'Failed to fetch settings');
+    }
+
+    setLoading(false);
+  }, [profile]);
+
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
+
+  // Lifecycle Stages CRUD
+  const addLifecycleStage = useCallback(
+    async (stage: Omit<LifecycleStage, 'id' | 'order'>): Promise<LifecycleStage | null> => {
+      const newStage: Omit<LifecycleStage, 'id'> = {
+        ...stage,
+        order: lifecycleStages.length,
+        isDefault: false,
+      };
+
+      const { data, error: addError } = await lifecycleStagesService.create(newStage);
+
+      if (addError) {
+        setError(addError.message);
+        return null;
+      }
+
+      if (data) {
+        setLifecycleStages(prev => [...prev, data]);
+      }
+
+      return data;
+    },
+    [lifecycleStages.length]
+  );
+
+  const updateLifecycleStage = useCallback(
+    async (id: string, updates: Partial<LifecycleStage>) => {
+      const { error: updateError } = await lifecycleStagesService.update(id, updates);
+
+      if (updateError) {
+        setError(updateError.message);
+        return;
+      }
+
+      setLifecycleStages(prev => prev.map(s => (s.id === id ? { ...s, ...updates } : s)));
+    },
+    []
+  );
+
+  const deleteLifecycleStage = useCallback(async (id: string, contacts: any[] = []) => {
+    const stageToDelete = lifecycleStages.find(s => s.id === id);
+    if (stageToDelete?.isDefault) return;
+
+    // Validate if there are linked contacts
+    const hasLinkedContacts = contacts.some(c => c.stage === id);
+    if (hasLinkedContacts) {
+      setError('Não é possível excluir estágio com contatos vinculados');
+      return;
+    }
+
+    const { error: deleteError } = await lifecycleStagesService.delete(id);
+
+    if (deleteError) {
+      setError(deleteError.message);
+      return;
+    }
+
+    setLifecycleStages(prev => prev.filter(s => s.id !== id));
+  }, [lifecycleStages]);
+
+  const reorderLifecycleStages = useCallback(async (newOrder: LifecycleStage[]) => {
+    // Update local state immediately
+    const reordered = newOrder.map((s, index) => ({ ...s, order: index }));
+    setLifecycleStages(reordered);
+
+    // Update each stage in DB
+    for (const stage of reordered) {
+      await lifecycleStagesService.update(stage.id, { order: stage.order });
+    }
+  }, []);
+
+  // AI Config setters (persist to Supabase)
+  const updateSettings = useCallback(async (updates: Record<string, unknown>) => {
+    const { error: updateError } = await settingsService.update(updates);
+    if (updateError) {
+      setError(updateError.message);
+    }
+  }, []);
+
+  const setAiProvider = useCallback(
+    async (provider: AIConfig['provider']) => {
+      setAiProviderState(provider);
+      await updateSettings({ aiProvider: provider });
+    },
+    [updateSettings]
+  );
+
+  const setAiApiKey = useCallback(
+    async (key: string) => {
+      // Update the correct provider's key
+      switch (aiProvider) {
+        case 'google':
+          setAiGoogleKeyState(key);
+          await updateSettings({ aiGoogleKey: key });
+          break;
+        case 'openai':
+          setAiOpenaiKeyState(key);
+          await updateSettings({ aiOpenaiKey: key });
+          break;
+        case 'anthropic':
+          setAiAnthropicKeyState(key);
+          await updateSettings({ aiAnthropicKey: key });
+          break;
+      }
+    },
+    [updateSettings, aiProvider]
+  );
+
+  const setAiModel = useCallback(
+    async (model: string) => {
+      setAiModelState(model);
+      await updateSettings({ aiModel: model });
+    },
+    [updateSettings]
+  );
+
+  const setAiThinking = useCallback(
+    async (enabled: boolean) => {
+      setAiThinkingState(enabled);
+      await updateSettings({ aiThinking: enabled });
+    },
+    [updateSettings]
+  );
+
+  const setAiSearch = useCallback(
+    async (enabled: boolean) => {
+      setAiSearchState(enabled);
+      await updateSettings({ aiSearch: enabled });
+    },
+    [updateSettings]
+  );
+
+  const setAiAnthropicCaching = useCallback(
+    async (enabled: boolean) => {
+      setAiAnthropicCachingState(enabled);
+      await updateSettings({ aiAnthropicCaching: enabled });
+    },
+    [updateSettings]
+  );
+
+  // Custom Fields (local state for now)
+  const addCustomField = useCallback((field: Omit<CustomFieldDefinition, 'id'>) => {
+    const newField = { ...field, id: crypto.randomUUID() };
+    setCustomFieldDefinitions(prev => [...prev, newField]);
+  }, []);
+
+  const updateCustomField = useCallback((id: string, updates: Partial<CustomFieldDefinition>) => {
+    setCustomFieldDefinitions(prev => prev.map(f => (f.id === id ? { ...f, ...updates } : f)));
+  }, []);
+
+  const removeCustomField = useCallback((id: string) => {
+    setCustomFieldDefinitions(prev => prev.filter(f => f.id !== id));
+  }, []);
+
+  // Tags (local state for now)
+  const addTag = useCallback((tag: string) => {
+    if (!availableTags.includes(tag)) {
+      setAvailableTags(prev => [...prev, tag]);
+    }
+  }, [availableTags]);
+
+  const removeTag = useCallback((tag: string) => {
+    setAvailableTags(prev => prev.filter(t => t !== tag));
+  }, []);
+
+  // Legacy Leads
+  const addLead = useCallback((lead: Lead) => {
+    setLeads(prev => [...prev, lead]);
+  }, []);
+
+  const updateLead = useCallback((id: string, updates: Partial<Lead>) => {
+    setLeads(prev => prev.map(l => (l.id === id ? { ...l, ...updates } : l)));
+  }, []);
+
+  const discardLead = useCallback((id: string) => {
+    setLeads(prev => prev.filter(l => l.id !== id));
+  }, []);
+
+  const value = useMemo(
+    () => ({
+      loading,
+      error,
+      lifecycleStages,
+      addLifecycleStage,
+      updateLifecycleStage,
+      deleteLifecycleStage,
+      reorderLifecycleStages,
+      products,
+      customFieldDefinitions,
+      addCustomField,
+      updateCustomField,
+      removeCustomField,
+      availableTags,
+      addTag,
+      removeTag,
+      aiProvider,
+      setAiProvider,
+      aiApiKey,
+      setAiApiKey,
+      aiGoogleKey,
+      aiOpenaiKey,
+      aiAnthropicKey,
+      aiModel,
+      setAiModel,
+      aiThinking,
+      setAiThinking,
+      aiSearch,
+      setAiSearch,
+      aiAnthropicCaching,
+      setAiAnthropicCaching,
+      isGlobalAIOpen,
+      setIsGlobalAIOpen,
+      leads,
+      setLeads,
+      addLead,
+      updateLead,
+      discardLead,
+      refresh: fetchSettings,
+    }),
+    [
+      loading,
+      error,
+      lifecycleStages,
+      addLifecycleStage,
+      updateLifecycleStage,
+      deleteLifecycleStage,
+      reorderLifecycleStages,
+      products,
+      customFieldDefinitions,
+      addCustomField,
+      updateCustomField,
+      removeCustomField,
+      availableTags,
+      addTag,
+      removeTag,
+      aiProvider,
+      setAiProvider,
+      aiApiKey,
+      setAiApiKey,
+      aiGoogleKey,
+      aiOpenaiKey,
+      aiAnthropicKey,
+      aiModel,
+      setAiModel,
+      aiThinking,
+      setAiThinking,
+      aiSearch,
+      setAiSearch,
+      aiAnthropicCaching,
+      setAiAnthropicCaching,
+      isGlobalAIOpen,
+      leads,
+      setLeads,
+      addLead,
+      updateLead,
+      discardLead,
+      fetchSettings,
+    ]
+  );
+
+  return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
+};
+
+export const useSettings = () => {
+  const context = useContext(SettingsContext);
+  if (context === undefined) {
+    throw new Error('useSettings must be used within a SettingsProvider');
+  }
+  return context;
+};
