@@ -57,6 +57,10 @@
     - Detalhe técnico: o Wizard usa `GET /v1/organizations/{slug}` para exibir o `plan` e `GET /v1/organizations/{slug}/projects` (com filtro de status) para contar/mostrar projetos por org.
     - Fix: lista de projetos ativos agora mostra **todos os itens** (com scroll) e ao trocar de organização a UI **invalida cache e refaz fetch automaticamente**.
     - UX: o passo Supabase agora é um **mini-wizard real** (PAT → Projeto → Auto-preenchimento), mostrando **uma etapa por vez** e mantendo as etapas concluídas como **resumos colapsados** com “editar”.
+    - UX (cinematográfico / Interstellar): o wizard ganhou “capítulos” (pt-BR) com subtítulo + microfrase, transições de cena via `framer-motion` (fade/blur/slide) e acento **ciano/teal** local no instalador (CTA + progresso + glow).
+    - UX (cinematográfico — wizard inteiro): transições de cena agora acontecem também entre os passos **Vercel → Supabase → Admin → Review** (não só dentro do Supabase), mantendo o footer como “continuidade” para dar sensação de filme.
+    - UX (cinematográfico — Piloto automático): ao clicar **“Instalar agora”**, abre um overlay “Piloto automático” com **timeline animada** e telemetria enquanto o backend executa; ao finalizar, mostra status real + Edge Functions e permite fechar/continuar.
+    - UX (zero fricção): ao colar um PAT válido, o Supabase step tenta listar orgs automaticamente e **auto-avança** para “Destino” quando a verificação passa; se houver apenas 1 org, ela é selecionada automaticamente e o sistema já carrega os projetos.
 
 - **Build (fix)**:
   - Corrigidos erros de typecheck no build (`next build`):

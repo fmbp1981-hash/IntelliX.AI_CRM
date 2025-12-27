@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, CheckCircle2, Loader2, RefreshCw, Shield } from 'lucide-react';
+import { AnimatePresence, motion, useMotionValue, useSpring } from 'framer-motion';
 
 type InstallerMeta = {
   enabled: boolean;
@@ -110,6 +111,7 @@ export default function InstallWizardPage() {
   const [supabaseResolvedLabel, setSupabaseResolvedLabel] = useState<string | null>(null);
   const [supabaseMode, setSupabaseMode] = useState<'existing' | 'create'>('create');
   const [supabaseUiStep, setSupabaseUiStep] = useState<'pat' | 'project' | 'final'>('pat');
+  const [supabasePatAutoAdvanced, setSupabasePatAutoAdvanced] = useState(false);
   const [supabaseProjectsLoading, setSupabaseProjectsLoading] = useState(false);
   const [supabaseProjectsError, setSupabaseProjectsError] = useState<string | null>(null);
   const [supabaseProjects, setSupabaseProjects] = useState<SupabaseProjectOption[]>([]);
@@ -153,6 +155,92 @@ export default function InstallWizardPage() {
   const [installing, setInstalling] = useState(false);
   const [result, setResult] = useState<RunResult | null>(null);
   const [runError, setRunError] = useState<string | null>(null);
+
+  // Cinematic: subtle parallax (desktop-first). Kept tiny to avoid nausea.
+  const mx = useMotionValue(0);
+  const my = useMotionValue(0);
+  const mxSpring = useSpring(mx, { stiffness: 120, damping: 30, mass: 0.6 });
+  const mySpring = useSpring(my, { stiffness: 120, damping: 30, mass: 0.6 });
+
+  const setParallaxFromEvent = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const dx = (e.clientX - rect.left) / rect.width - 0.5; // [-0.5..0.5]
+    const dy = (e.clientY - rect.top) / rect.height - 0.5;
+    mx.set(dx * 14);
+    my.set(dy * 10);
+  };
+
+  const clearParallax = () => {
+    mx.set(0);
+    my.set(0);
+  };
+
+  const TEAL = {
+    // Acento local do installer (não mexe no tema global).
+    solid: 'bg-cyan-600 hover:bg-cyan-500',
+    solidText: 'text-cyan-600 dark:text-cyan-400',
+    ring: 'focus:ring-cyan-400/30 focus:border-cyan-400',
+    gradient: 'bg-linear-to-r from-cyan-400 to-teal-400',
+  } as const;
+
+  const sceneVariants = {
+    initial: { opacity: 0, y: 10, filter: 'blur(6px)' },
+    animate: { opacity: 1, y: 0, filter: 'blur(0px)' },
+    exit: { opacity: 0, y: -6, filter: 'blur(4px)' },
+  } as const;
+
+  const sceneTransition = {
+    type: 'tween',
+    ease: [0.22, 1, 0.36, 1], // cinematic ease-out
+    duration: 0.32,
+  } as const;
+
+  const chapter = useMemo(() => {
+    // Capítulos Interstellar (pt-BR), estilo A + B1.
+    // Agora é um capítulo por passo do wizard (cena), não por sub-etapa do Supabase.
+    if (currentStep === 0) {
+      return {
+        title: 'Capítulo 1 — Autorização',
+        subtitle: 'Confirmando acesso para iniciar a jornada.',
+        micro: 'Tudo começa com uma chave.',
+      };
+    }
+    if (currentStep === 1) {
+      return {
+        title: 'Capítulo 2 — Destino',
+        subtitle: 'Escolha onde vamos pousar (seu projeto Supabase).',
+        micro: 'Onde nasce seu novo mundo.',
+      };
+    }
+    if (currentStep === 2) {
+      return {
+        title: 'Capítulo 3 — Sincronização',
+        subtitle: 'Alinhando equipe e ambiente.',
+        micro: 'Tudo no lugar.',
+      };
+    }
+    return {
+      title: 'Capítulo 4 — Primeiro contato',
+      subtitle: 'Tudo pronto para entrar no novo mundo.',
+      micro: 'Agora começa.',
+    };
+  }, [currentStep]);
+
+  const expectedInstallTimeline = useMemo(
+    () => [
+      { id: 'vercel_envs', label: 'Vercel — Variáveis de ambiente' },
+      { id: 'supabase_migrations', label: 'Supabase — Migrações' },
+      { id: 'supabase_bootstrap', label: 'Supabase — Bootstrap' },
+      { id: 'supabase_edge_functions', label: 'Supabase — Edge Functions' },
+      { id: 'vercel_redeploy', label: 'Vercel — Redeploy' },
+    ],
+    []
+  );
+
+  const [showInstallOverlay, setShowInstallOverlay] = useState(false);
+  const [cineTimelineIndex, setCineTimelineIndex] = useState(0);
+  const [cineCanClose, setCineCanClose] = useState(false);
+  const [cineStartedAtMs, setCineStartedAtMs] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -259,6 +347,10 @@ export default function InstallWizardPage() {
     setInstalling(true);
     setRunError(null);
     setResult(null);
+    setShowInstallOverlay(true);
+    setCineCanClose(false);
+    setCineTimelineIndex(0);
+    setCineStartedAtMs(Date.now());
 
     try {
       const res = await fetch('/api/installer/run', {
@@ -301,8 +393,30 @@ export default function InstallWizardPage() {
       setRunError(message);
     } finally {
       setInstalling(false);
+      setCineCanClose(true);
     }
   };
+
+  useEffect(() => {
+    if (!showInstallOverlay) return;
+    if (!installing) return;
+
+    // “Bruxaria” controlada: timeline animada (sem prometer sucesso) enquanto o backend trabalha.
+    const t0 = Date.now();
+    const tick = () => {
+      const elapsed = Date.now() - t0;
+      // avança devagar, sem correr até o fim (deixa espaço pro resultado real)
+      const nextIndex = Math.min(
+        Math.floor(elapsed / 900),
+        Math.max(0, expectedInstallTimeline.length - 2)
+      );
+      setCineTimelineIndex(nextIndex);
+    };
+
+    tick();
+    const handle = setInterval(tick, 220);
+    return () => clearInterval(handle);
+  }, [expectedInstallTimeline.length, installing, showInstallOverlay]);
 
   const statusColor = (status: Step['status']) => {
     switch (status) {
@@ -605,7 +719,71 @@ export default function InstallWizardPage() {
     setSupabaseProjectRef('');
     setSupabaseProjectRefTouched(false);
     setSupabaseUiStep('pat');
+    setSupabasePatAutoAdvanced(false);
   }, [supabaseAccessToken]);
+
+  useEffect(() => {
+    // Cinematic + zero friction:
+    // - ao colar um PAT com cara de válido, tenta listar orgs automaticamente
+    // - quando a chamada funciona, avança para "Destino" sem clique
+    if (supabaseUiStep !== 'pat') return;
+    if (supabasePatAutoAdvanced) return;
+
+    const pat = supabaseAccessToken.trim();
+    const looksLikePat = /^sbp_[A-Za-z0-9_-]{20,}$/.test(pat);
+    if (!looksLikePat) return;
+    if (supabaseOrgsLoading) return;
+    if (supabaseOrgs.length > 0) return;
+    if (supabaseOrgsError) return;
+
+    const handle = setTimeout(() => {
+      void (async () => {
+        await loadSupabaseOrgs();
+      })();
+    }, 450);
+
+    return () => clearTimeout(handle);
+  }, [
+    supabaseUiStep,
+    supabasePatAutoAdvanced,
+    supabaseAccessToken,
+    supabaseOrgsLoading,
+    supabaseOrgs.length,
+    supabaseOrgsError,
+  ]);
+
+  useEffect(() => {
+    // Quando orgs chegam e ainda estamos no PAT, faz auto-avanço.
+    if (supabaseUiStep !== 'pat') return;
+    if (supabasePatAutoAdvanced) return;
+    if (supabaseOrgsLoading) return;
+    if (supabaseOrgsError) return;
+    if (supabaseOrgs.length === 0) return;
+
+    // Pequena pausa “gravidade” antes de mudar de cena.
+    const handle = setTimeout(() => {
+      setSupabasePatAutoAdvanced(true);
+      setSupabaseUiStep('project');
+    }, 180);
+
+    return () => clearTimeout(handle);
+  }, [supabaseUiStep, supabasePatAutoAdvanced, supabaseOrgsLoading, supabaseOrgsError, supabaseOrgs.length]);
+
+  useEffect(() => {
+    // Se só existe 1 org, auto-seleciona e já carrega os projetos (zero fricção).
+    if (supabaseUiStep !== 'project') return;
+    if (supabaseOrgs.length !== 1) return;
+    if (supabaseSelectedOrgSlug) return;
+    const only = supabaseOrgs[0]?.slug;
+    if (!only) return;
+
+    setSupabaseSelectedOrgSlug(only);
+    setSupabaseCreateOrgSlug(only);
+    setSupabaseSelectedOrgPlan(null);
+    setSupabaseOrgProjects([]);
+    setSupabaseOrgProjectsLoadedKey('');
+    void loadSupabaseOrganizationProjects(only);
+  }, [supabaseUiStep, supabaseOrgs, supabaseSelectedOrgSlug]);
 
   const createSupabaseProject = async () => {
     if (supabaseCreating) return;
@@ -687,10 +865,32 @@ export default function InstallWizardPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-dark-bg relative overflow-hidden">
+    <div
+      className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-dark-bg relative overflow-hidden"
+      onMouseMove={setParallaxFromEvent}
+      onMouseLeave={clearParallax}
+    >
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
-        <div className="absolute -top-[20%] -right-[10%] w-[50%] h-[50%] bg-primary-500/20 rounded-full blur-[120px]" />
-        <div className="absolute top-[40%] -left-[10%] w-[40%] h-[40%] bg-blue-500/20 rounded-full blur-[100px]" />
+        {/* Vignette */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.06)_0%,rgba(2,6,23,0)_42%,rgba(2,6,23,0.88)_100%)] dark:opacity-100 opacity-0" />
+        {/* Film grain (SVG noise, very subtle) */}
+        <div
+          className="absolute inset-0 opacity-[0.05] mix-blend-overlay"
+          style={{
+            backgroundImage:
+              "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E\")",
+          }}
+        />
+
+        {/* Nebula blobs (parallax) */}
+        <motion.div
+          className="absolute -top-[20%] -right-[10%] w-[50%] h-[50%] rounded-full blur-[120px] bg-cyan-500/18"
+          style={{ x: mxSpring, y: mySpring }}
+        />
+        <motion.div
+          className="absolute top-[40%] -left-[10%] w-[40%] h-[40%] rounded-full blur-[100px] bg-teal-500/16"
+          style={{ x: mxSpring, y: mySpring }}
+        />
       </div>
 
       <div className="w-full max-w-2xl relative z-10 px-4">
@@ -699,14 +899,16 @@ export default function InstallWizardPage() {
             <Shield className="w-7 h-7 text-primary-600 dark:text-primary-400" />
           </div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white font-display tracking-tight">
-            Instalacao do CRM
+            Instalação do CRM
           </h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1">
-            Wizard guiado para provisionar Vercel, Supabase e admin inicial.
+            Uma jornada guiada para preparar Vercel, Supabase e o primeiro acesso.
           </p>
         </div>
 
-        <div className="bg-white dark:bg-dark-card border border-slate-200 dark:border-white/10 rounded-2xl p-8 shadow-xl backdrop-blur-sm space-y-6">
+        <div className="bg-white dark:bg-dark-card border border-slate-200 dark:border-white/10 rounded-2xl p-8 shadow-xl backdrop-blur-sm space-y-6 relative">
+          {/* subtle teal rim light */}
+          <div className="pointer-events-none absolute -inset-px rounded-2xl opacity-0 dark:opacity-100 bg-[radial-gradient(1200px_circle_at_20%_0%,rgba(34,211,238,0.18),transparent_52%),radial-gradient(900px_circle_at_100%_20%,rgba(45,212,191,0.12),transparent_50%)]" />
           {!meta && !metaError ? (
             <div className="flex items-center justify-center text-slate-600 dark:text-slate-300 py-8">
               <Loader2 className="w-5 h-5 animate-spin mr-2" />
@@ -744,9 +946,9 @@ export default function InstallWizardPage() {
                         <div
                           className={`h-7 w-7 rounded-full border flex items-center justify-center text-xs ${
                             isDone
-                              ? 'bg-primary-600 text-white border-primary-600'
+                              ? `bg-cyan-600 text-white border-cyan-600`
                               : isActive
-                                ? 'bg-primary-600 text-white border-primary-600'
+                                ? `bg-cyan-600 text-white border-cyan-600`
                                 : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-400'
                           }`}
                         >
@@ -759,61 +961,85 @@ export default function InstallWizardPage() {
                 </div>
                 <div className="h-1 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                   <div
-                    className="h-full bg-linear-to-r from-primary-500 to-primary-600 transition-all"
+                    className={`h-full ${TEAL.gradient} transition-all`}
                     style={{ width: `${progress}%` }}
                   />
                 </div>
               </div>
 
-              {currentStep === 0 ? (
-                <div className="border-t border-slate-200 dark:border-white/10 pt-5 space-y-4">
-                  {meta.requiresToken ? (
-                    <div className="space-y-2">
-                      <label className="text-sm text-slate-600 dark:text-slate-300">
-                        Installer token
-                      </label>
-                      <input
-                        value={installerToken}
-                        onChange={(e) => setInstallerToken(e.target.value)}
-                        className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500"
-                        placeholder="Token interno (opcional)"
-                      />
-                    </div>
-                  ) : null}
-
-                  <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 space-y-2 bg-slate-50 dark:bg-slate-900/50">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-500 dark:text-slate-400">Projeto</span>
-                      <span className="text-slate-900 dark:text-white font-medium">
-                        {project?.name || '-'}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-500 dark:text-slate-400">URL</span>
-                      <span className="text-slate-700 dark:text-slate-200">
-                        {project?.url || '-'}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-500 dark:text-slate-400">PAT</span>
-                      <span className="text-slate-700 dark:text-slate-200">
-                        {maskValue(vercelToken)}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleResetProject}
-                      className="inline-flex items-center gap-2 text-xs text-primary-600 dark:text-primary-400 hover:text-primary-500"
-                    >
-                      <RefreshCw className="w-3 h-3" />
-                      Trocar token/projeto
-                    </button>
+              {chapter ? (
+                <div className="rounded-xl border border-slate-200 dark:border-white/10 bg-white/70 dark:bg-slate-900/30 p-4 space-y-1">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    {chapter.title}
+                  </div>
+                  <div className="text-sm font-semibold text-slate-900 dark:text-white">
+                    {chapter.subtitle}
+                  </div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">
+                    {chapter.micro}
                   </div>
                 </div>
               ) : null}
 
-              {currentStep === 1 ? (
-                <div className="border-t border-slate-200 dark:border-white/10 pt-5 space-y-4">
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={`wizard-scene-${currentStep}`}
+                  variants={sceneVariants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  transition={sceneTransition}
+                  className="border-t border-slate-200 dark:border-white/10 pt-5 space-y-4"
+                >
+                  {currentStep === 0 ? (
+                    <div className="space-y-4">
+                      {meta.requiresToken ? (
+                        <div className="space-y-2">
+                          <label className="text-sm text-slate-600 dark:text-slate-300">
+                            Installer token
+                          </label>
+                          <input
+                            value={installerToken}
+                            onChange={(e) => setInstallerToken(e.target.value)}
+                            className={`w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 ${TEAL.ring}`}
+                            placeholder="Token interno (opcional)"
+                          />
+                        </div>
+                      ) : null}
+
+                      <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 space-y-2 bg-slate-50 dark:bg-slate-900/50">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-slate-500 dark:text-slate-400">Projeto</span>
+                          <span className="text-slate-900 dark:text-white font-medium">
+                            {project?.name || '-'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-slate-500 dark:text-slate-400">URL</span>
+                          <span className="text-slate-700 dark:text-slate-200">
+                            {project?.url || '-'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-slate-500 dark:text-slate-400">PAT</span>
+                          <span className="text-slate-700 dark:text-slate-200">
+                            {maskValue(vercelToken)}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleResetProject}
+                          className={`inline-flex items-center gap-2 text-xs ${TEAL.solidText} hover:text-cyan-500`}
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                          Trocar token/projeto
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {currentStep === 1 ? (
+                    <>
                   <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 bg-slate-50 dark:bg-slate-900/50 space-y-3">
                     <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
                       Supabase: configuração guiada
@@ -834,7 +1060,7 @@ export default function InstallWizardPage() {
                         type="password"
                         value={supabaseAccessToken}
                         onChange={(e) => setSupabaseAccessToken(e.target.value)}
-                        className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500"
+                        className={`w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 ${TEAL.ring}`}
                         placeholder="sbp_..."
                       />
                       <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -851,14 +1077,14 @@ export default function InstallWizardPage() {
                         .
                       </p>
                       <div className="flex items-center gap-2">
-                        <button
+                      <button
                           type="button"
                           onClick={async () => {
                             setSupabaseUiStep('project');
                             await loadSupabaseOrgs();
                           }}
                           disabled={!supabaseAccessToken.trim()}
-                          className="px-3 py-2 rounded-lg text-sm font-semibold bg-primary-600 text-white hover:bg-primary-500 disabled:opacity-50"
+                        className={`px-3 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50 ${TEAL.solid}`}
                         >
                           Continuar
                         </button>
@@ -1061,7 +1287,7 @@ export default function InstallWizardPage() {
                                       <button
                                         type="button"
                                         onClick={() => selectSupabaseProject(p.ref)}
-                                        className="px-2 py-1 rounded-md text-xs font-semibold bg-primary-600 text-white hover:bg-primary-500"
+                                        className={`px-2 py-1 rounded-md text-xs font-semibold text-white ${TEAL.solid}`}
                                       >
                                         Usar este projeto
                                       </button>
@@ -1088,7 +1314,7 @@ export default function InstallWizardPage() {
                                   setSupabaseMode('create');
                                   await loadSupabaseOrgs();
                                 }}
-                                className="px-3 py-2 rounded-lg text-sm font-semibold bg-primary-600 text-white hover:bg-primary-500"
+                                className={`px-3 py-2 rounded-lg text-sm font-semibold text-white ${TEAL.solid}`}
                               >
                                 Criar projeto automaticamente
                               </button>
@@ -1319,7 +1545,7 @@ export default function InstallWizardPage() {
                               supabaseCreateDbPass.length < 12 ||
                               (supabaseOrgIsFreePlan && !supabaseOrgHasFreeSlot)
                             }
-                            className="w-full flex justify-center items-center py-3 px-4 rounded-xl text-sm font-bold text-white bg-primary-600 hover:bg-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-primary-500/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 active:scale-[0.98]"
+                            className="w-full flex justify-center items-center py-3 px-4 rounded-xl text-sm font-bold text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-cyan-500/15 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-400/30 active:scale-[0.98] bg-cyan-600 hover:bg-cyan-500"
                           >
                             {supabaseCreating ? (
                               <>
@@ -1341,6 +1567,9 @@ export default function InstallWizardPage() {
                       )}
                     </div>
                   ) : null}
+                    </>
+                  ) : null}
+                {/* (Scene ends below, right before the footer actions) */}
 
                   {/* Step 3: final + toggles */}
                   {supabaseUiStep === 'final' && supabaseUrl.trim() ? (
@@ -1456,7 +1685,7 @@ export default function InstallWizardPage() {
                           type="button"
                           onClick={resolveSupabase}
                           disabled={supabaseResolving || !supabaseUrl.trim() || !supabaseAccessToken.trim()}
-                          className="px-3 py-2 rounded-lg text-sm font-semibold bg-primary-600 text-white hover:bg-primary-500 disabled:opacity-50"
+                          className={`px-3 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50 ${TEAL.solid}`}
                         >
                           Rodar auto-preenchimento agora
                         </button>
@@ -1551,8 +1780,7 @@ export default function InstallWizardPage() {
                       </div>
                     </div>
                   ) : null}
-                </div>
-              ) : null}
+              {/* The rest of steps (Admin/Review) are rendered inside the wizard-scene block above */}
 
               {currentStep === 2 ? (
                 <div className="border-t border-slate-200 dark:border-white/10 pt-5 space-y-4">
@@ -1563,7 +1791,7 @@ export default function InstallWizardPage() {
                     <input
                       value={companyName}
                       onChange={(e) => setCompanyName(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500"
+                      className={`w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 ${TEAL.ring}`}
                       placeholder="Acme Corp"
                     />
                   </div>
@@ -1575,7 +1803,7 @@ export default function InstallWizardPage() {
                     <input
                       value={adminEmail}
                       onChange={(e) => setAdminEmail(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500"
+                      className={`w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 ${TEAL.ring}`}
                       placeholder="admin@empresa.com"
                     />
                   </div>
@@ -1589,7 +1817,7 @@ export default function InstallWizardPage() {
                         type="password"
                         value={adminPassword}
                         onChange={(e) => setAdminPassword(e.target.value)}
-                        className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500"
+                        className={`w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 ${TEAL.ring}`}
                         placeholder="Min 6 caracteres"
                       />
                     </div>
@@ -1602,7 +1830,7 @@ export default function InstallWizardPage() {
                         type="password"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
-                        className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500"
+                        className={`w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 ${TEAL.ring}`}
                         placeholder="Repita a senha"
                       />
                     </div>
@@ -1696,7 +1924,7 @@ export default function InstallWizardPage() {
                     type="button"
                     onClick={runInstaller}
                     disabled={!canInstall || installing}
-                    className="w-full flex justify-center items-center py-3 px-4 rounded-xl text-sm font-bold text-white bg-primary-600 hover:bg-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-primary-500/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 active:scale-[0.98]"
+                    className={`w-full flex justify-center items-center py-3 px-4 rounded-xl text-sm font-bold text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-cyan-500/15 focus:outline-none focus:ring-2 focus:ring-offset-2 ${TEAL.ring} active:scale-[0.98] bg-cyan-600 hover:bg-cyan-500`}
                   >
                     {installing ? (
                       <>
@@ -1806,12 +2034,15 @@ export default function InstallWizardPage() {
                 </div>
               ) : null}
 
+                </motion.div>
+              </AnimatePresence>
+
               <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-white/10">
                 <button
                   type="button"
                   onClick={goBack}
                   disabled={currentStep === 0 || installing}
-                  className="px-3 py-2 rounded-lg text-sm border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 transition-all disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 active:scale-[0.99]"
+                  className={`px-3 py-2 rounded-lg text-sm border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 transition-all disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-2 ${TEAL.ring} active:scale-[0.99]`}
                 >
                   Voltar
                 </button>
@@ -1820,7 +2051,7 @@ export default function InstallWizardPage() {
                     type="button"
                     onClick={goNext}
                     disabled={!stepReady[currentStep]}
-                    className="px-3 py-2 rounded-lg text-sm font-semibold bg-primary-600 text-white hover:bg-primary-500 transition-all disabled:opacity-50 shadow-lg shadow-primary-500/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 active:scale-[0.98]"
+                    className={`px-3 py-2 rounded-lg text-sm font-semibold text-white transition-all disabled:opacity-50 shadow-lg shadow-cyan-500/15 focus:outline-none focus:ring-2 focus:ring-offset-2 ${TEAL.ring} active:scale-[0.98] bg-cyan-600 hover:bg-cyan-500`}
                   >
                     Avancar
                   </button>
@@ -1834,6 +2065,183 @@ export default function InstallWizardPage() {
           ) : null}
         </div>
       </div>
+
+      {/* Cinematic install overlay (C) */}
+      <AnimatePresence>
+        {showInstallOverlay ? (
+          <motion.div
+            key="install-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            className="fixed inset-0 z-50 flex items-center justify-center"
+            aria-modal="true"
+            role="dialog"
+          >
+            <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-md" />
+            <motion.div
+              initial={{ opacity: 0, y: 14, filter: 'blur(10px)' }}
+              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, y: -10, filter: 'blur(8px)' }}
+              transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+              className="relative w-[min(880px,92vw)] rounded-2xl border border-white/10 bg-slate-950/70 shadow-2xl overflow-hidden"
+            >
+              <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(900px_circle_at_20%_0%,rgba(34,211,238,0.18),transparent_55%),radial-gradient(700px_circle_at_100%_10%,rgba(45,212,191,0.12),transparent_55%)]" />
+
+              <div className="relative p-6 sm:p-7">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                      Piloto automático
+                    </div>
+                    <div className="text-xl font-bold text-white tracking-tight">
+                      Preparando seu novo mundo
+                    </div>
+                    <div className="text-sm text-slate-300">
+                      {installing
+                        ? 'Executando instalação… você pode só observar.'
+                        : runError
+                          ? 'Encontramos um problema. Você pode corrigir e tentar de novo.'
+                          : result?.ok
+                            ? 'Tudo pronto. Agora começa.'
+                            : 'Instalação finalizada com avisos.'}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={!cineCanClose && installing}
+                    onClick={() => {
+                      if (!cineCanClose && installing) return;
+                      setShowInstallOverlay(false);
+                    }}
+                    className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm border border-white/10 text-slate-200 hover:bg-white/5 transition disabled:opacity-40 disabled:cursor-not-allowed`}
+                  >
+                    Fechar
+                  </button>
+                </div>
+
+                <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                    <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                      Timeline
+                    </div>
+                    <div className="mt-3 space-y-2">
+                      {expectedInstallTimeline.map((s, idx) => {
+                        const real = result?.steps?.find((st) => st.id === s.id);
+                        const isRunning = installing && !result && idx === cineTimelineIndex;
+                        const isAhead = installing && !result && idx < cineTimelineIndex;
+                        const status: 'queued' | 'running' | 'ok' | 'warning' | 'error' =
+                          real?.status === 'ok' || real?.status === 'warning' || real?.status === 'error'
+                            ? (real.status as 'ok' | 'warning' | 'error')
+                            : isRunning
+                              ? 'running'
+                              : isAhead
+                                ? 'queued'
+                                : 'queued';
+
+                        const icon =
+                          status === 'running' ? (
+                            <Loader2 className="w-4 h-4 animate-spin text-cyan-300" />
+                          ) : (
+                            <CheckCircle2
+                              size={16}
+                              className={
+                                status === 'ok'
+                                  ? 'text-emerald-400'
+                                  : status === 'warning'
+                                    ? 'text-amber-400'
+                                    : status === 'error'
+                                      ? 'text-red-400'
+                                      : 'text-slate-500'
+                              }
+                            />
+                          );
+
+                        return (
+                          <div key={s.id} className="flex items-center gap-3">
+                            <div className="shrink-0">{icon}</div>
+                            <div className="min-w-0">
+                              <div className="text-sm text-slate-100 truncate">{s.label}</div>
+                              <div className="text-xs text-slate-400">
+                                {real?.status
+                                  ? real.status
+                                  : status === 'running'
+                                    ? 'em andamento'
+                                    : 'na fila'}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+                    <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                      Telemetria
+                    </div>
+                    <div className="text-sm text-slate-200">
+                      {typeof cineStartedAtMs === 'number' ? (
+                        <span>
+                          Tempo: <span className="text-slate-300">
+                            {Math.max(0, Math.round((Date.now() - cineStartedAtMs) / 1000))}s
+                          </span>
+                        </span>
+                      ) : (
+                        <span>Tempo: —</span>
+                      )}
+                    </div>
+                    {runError ? (
+                      <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-200">
+                        {runError}
+                      </div>
+                    ) : null}
+                    {result?.functions && result.functions.length > 0 ? (
+                      <div className="pt-1 space-y-2">
+                        <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                          Edge Functions
+                        </div>
+                        <div className="space-y-1">
+                          {result.functions.map((fn) => (
+                            <div key={fn.slug} className="flex items-center gap-2 text-sm">
+                              <CheckCircle2
+                                size={14}
+                                className={fn.ok ? 'text-emerald-400' : 'text-red-400'}
+                              />
+                              <span className="text-slate-200">{fn.slug}</span>
+                              <span className="text-xs text-slate-400">
+                                {fn.ok ? 'ok' : 'erro'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <div className="pt-2">
+                      <button
+                        type="button"
+                        disabled={installing}
+                        onClick={() => setShowInstallOverlay(false)}
+                        className={`w-full py-2.5 rounded-xl text-sm font-semibold text-white transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-cyan-500/15 focus:outline-none focus:ring-2 ${TEAL.ring} bg-cyan-600 hover:bg-cyan-500`}
+                      >
+                        {installing ? 'Em andamento…' : 'Continuar'}
+                      </button>
+                      <div className="mt-2 text-[11px] text-slate-400">
+                        {installing
+                          ? 'Não feche a aba — estamos configurando tudo para você.'
+                          : 'Você pode fechar este painel e seguir no wizard.'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }
