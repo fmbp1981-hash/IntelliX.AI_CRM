@@ -1687,6 +1687,238 @@ CREATE POLICY "avatar_delete" ON storage.objects
 -- (redundante por segurança: o topo já cria, mas manter é barato e evita drift)
 CREATE EXTENSION IF NOT EXISTS pg_net;
 
+-- =============================================================================
+-- PART 5.2: PUBLIC API KEYS (Integrações via API key)
+-- =============================================================================
+-- Objetivo:
+-- - Chaves gerenciadas via interface (admin)
+-- - Single-tenant: cada key mapeia para 1 organization_id
+-- - Token nunca é persistido em claro: armazenamos apenas hash (sha256 hex) + prefix
+
+CREATE TABLE IF NOT EXISTS public.api_keys (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  key_prefix TEXT NOT NULL,
+  key_hash TEXT NOT NULL, -- sha256 hex do token completo
+  created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  revoked_at TIMESTAMPTZ,
+  last_used_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.api_keys ENABLE ROW LEVEL SECURITY;
+
+CREATE INDEX IF NOT EXISTS idx_api_keys_org ON public.api_keys(organization_id);
+CREATE INDEX IF NOT EXISTS idx_api_keys_org_active ON public.api_keys(organization_id) WHERE revoked_at IS NULL;
+
+-- Admin-only policies
+DROP POLICY IF EXISTS "Admins can manage api keys" ON public.api_keys;
+CREATE POLICY "Admins can manage api keys"
+  ON public.api_keys
+  FOR ALL
+  TO authenticated
+  USING (
+    auth.uid() IN (
+      SELECT id FROM public.profiles
+      WHERE organization_id = api_keys.organization_id
+        AND role = 'admin'
+    )
+  )
+  WITH CHECK (
+    auth.uid() IN (
+      SELECT id FROM public.profiles
+      WHERE organization_id = api_keys.organization_id
+        AND role = 'admin'
+    )
+  );
+
+-- Helpers
+CREATE OR REPLACE FUNCTION public._api_key_make_token()
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  token TEXT;
+BEGIN
+  -- base64url-ish, prefix human-friendly
+  token := 'ncrm_' || regexp_replace(
+    replace(replace(encode(gen_random_bytes(24), 'base64'), '+', '-'), '/', '_'),
+    '=',
+    '',
+    'g'
+  );
+  RETURN token;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public._api_key_sha256_hex(token TEXT)
+RETURNS TEXT
+LANGUAGE sql
+SECURITY DEFINER
+AS $$
+  SELECT encode(digest(token, 'sha256'), 'hex');
+$$;
+
+-- Create API key (admin via UI) - returns the token ONCE
+CREATE OR REPLACE FUNCTION public.create_api_key(p_name TEXT)
+RETURNS TABLE (
+  api_key_id UUID,
+  token TEXT,
+  key_prefix TEXT,
+  organization_id UUID
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  uid UUID;
+  org_id UUID;
+  t TEXT;
+  prefix TEXT;
+  h TEXT;
+BEGIN
+  uid := auth.uid();
+  IF uid IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  SELECT p.organization_id INTO org_id
+  FROM public.profiles p
+  WHERE p.id = uid;
+
+  IF org_id IS NULL THEN
+    RAISE EXCEPTION 'Organization not found for user';
+  END IF;
+
+  -- Must be admin
+  IF NOT EXISTS (
+    SELECT 1 FROM public.profiles p
+    WHERE p.id = uid AND p.organization_id = org_id AND p.role = 'admin'
+  ) THEN
+    RAISE EXCEPTION 'Forbidden';
+  END IF;
+
+  t := public._api_key_make_token();
+  prefix := left(t, 12);
+  h := public._api_key_sha256_hex(t);
+
+  INSERT INTO public.api_keys (organization_id, name, key_prefix, key_hash, created_by, updated_at)
+  VALUES (org_id, COALESCE(NULLIF(btrim(p_name), ''), 'Integração'), prefix, h, uid, now())
+  RETURNING id INTO api_key_id;
+
+  token := t;
+  key_prefix := prefix;
+  organization_id := org_id;
+  RETURN NEXT;
+END;
+$$;
+
+-- Revoke API key (admin via UI)
+CREATE OR REPLACE FUNCTION public.revoke_api_key(p_api_key_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  uid UUID;
+  org_id UUID;
+  key_org UUID;
+BEGIN
+  uid := auth.uid();
+  IF uid IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  SELECT p.organization_id INTO org_id
+  FROM public.profiles p
+  WHERE p.id = uid;
+
+  IF org_id IS NULL THEN
+    RAISE EXCEPTION 'Organization not found for user';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.profiles p
+    WHERE p.id = uid AND p.organization_id = org_id AND p.role = 'admin'
+  ) THEN
+    RAISE EXCEPTION 'Forbidden';
+  END IF;
+
+  SELECT k.organization_id INTO key_org
+  FROM public.api_keys k
+  WHERE k.id = p_api_key_id;
+
+  IF key_org IS NULL THEN
+    RAISE EXCEPTION 'API key not found';
+  END IF;
+
+  IF key_org <> org_id THEN
+    RAISE EXCEPTION 'Forbidden';
+  END IF;
+
+  UPDATE public.api_keys
+    SET revoked_at = now(),
+        updated_at = now()
+  WHERE id = p_api_key_id;
+END;
+$$;
+
+-- Validate API key (public API auth)
+CREATE OR REPLACE FUNCTION public.validate_api_key(p_token TEXT)
+RETURNS TABLE (
+  api_key_id UUID,
+  api_key_prefix TEXT,
+  organization_id UUID,
+  organization_name TEXT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  h TEXT;
+BEGIN
+  IF p_token IS NULL OR btrim(p_token) = '' THEN
+    RETURN;
+  END IF;
+
+  h := public._api_key_sha256_hex(p_token);
+
+  RETURN QUERY
+  WITH k AS (
+    SELECT ak.id, ak.key_prefix, ak.organization_id
+    FROM public.api_keys ak
+    WHERE ak.key_hash = h
+      AND ak.revoked_at IS NULL
+    LIMIT 1
+  )
+  SELECT
+    k.id,
+    k.key_prefix,
+    k.organization_id,
+    o.name
+  FROM k
+  JOIN public.organizations o ON o.id = k.organization_id;
+
+  -- Touch last_used_at (best-effort)
+  UPDATE public.api_keys
+    SET last_used_at = now(),
+        updated_at = now()
+  WHERE key_hash = h
+    AND revoked_at IS NULL;
+END;
+$$;
+
+-- Explicit grants (avoid accidental PUBLIC execute on admin RPCs)
+REVOKE ALL ON FUNCTION public.create_api_key(TEXT) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.revoke_api_key(UUID) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.validate_api_key(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.create_api_key(TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.revoke_api_key(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.validate_api_key(TEXT) TO anon, authenticated;
+
 -- Config: fontes inbound (admin-only)
 CREATE TABLE IF NOT EXISTS public.integration_inbound_sources (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

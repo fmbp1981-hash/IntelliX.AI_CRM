@@ -47,6 +47,11 @@
       - botão **Enviar teste** e lista de **Últimos recebidos** (consulta em `webhook_events_in`) para prova de funcionamento.
     - **Fix (CORS)**: `webhook-in` agora responde a **OPTIONS** e inclui headers CORS, permitindo executar o **“Enviar teste”** diretamente pelo browser sem erro “Failed to fetch”.
     - **Outbound (Follow-up)**: payload do evento `deal.stage_changed` agora lista os campos `from_stage_*` antes de `to_stage_*` (melhor legibilidade ao inspecionar em ferramentas como n8n).
+- **Integrações → API (produto + docs)**:
+  - Publicado o documento OpenAPI 3.1.2 em `GET /api/public/v1/openapi.json` (fonte de verdade do contrato).
+  - Criada a seção **Settings → Integrações → API** com foco em produto (escolher objetivo + copiar/abrir OpenAPI sem “manual feio”).
+  - Adicionado guia humano em `docs/public-api.md`.
+  - Adicionada base da **Public API auth**: `api_keys` (schema consolidado) + RPCs `create_api_key`, `revoke_api_key`, `validate_api_key` e endpoint `GET /api/public/v1/me`.
 - **Debug Mode (UX)**:
   - Debug agora é **reativo** (sem refresh): toggle dispara evento (`DEBUG_MODE_EVENT`) e `DebugFillButton` usa `useDebugMode`.
   - Fix: geração de telefone fake agora é determinística (sem `fromRegExp`, evitando `\\` no número).
