@@ -29,6 +29,7 @@
 - **Installer — Ato final agora espera a Vercel**:
   - O `run-stream` passou a aguardar o deployment ficar **READY** via polling (`/v13/deployments/:id`) antes de emitir `complete`
   - Evita o "Explorar o novo mundo" apontar para um deploy ainda antigo (sem `NEXT_PUBLIC_SUPABASE_*`)
+  - UI agora mostra telemetria do polling: "Status do deploy: READY/BUILDING…"
 
 
 - **Installer — create-project idempotente**:
