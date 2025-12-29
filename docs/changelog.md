@@ -556,3 +556,9 @@
   - Removido texto técnico `"Tudo está pronto — você já pode entrar. (Se parecer desatualizado, recarregue a página.)"`
   - Botão simplificado: `🚀 Explorar o novo mundo` (usando ícone `Rocket` do Lucide)
   - Foco na celebração, não em instruções técnicas
+
+### 28/12/2025 — Eliminar "Piscada" da Tela de Token Supabase
+
+- **Problema**: Quando o token Supabase já estava salvo no `localStorage`, a tela de input aparecia rapidamente (já preenchida) e sumia antes de redirecionar para o wizard
+- **Fix**: Agora, quando o token Supabase já está salvo, o fluxo redireciona **direto para o wizard** sem mostrar a tela intermediária
+- **Resultado**: Transição mais limpa e rápida, sem "piscadas" visuais

@@ -152,8 +152,10 @@ export default function InstallStartPage() {
     if (savedEmail) setUserEmail(savedEmail);
     if (savedToken) {
       setVercelToken(savedToken);
+      // Se já tem token Supabase salvo, redireciona direto (evita "piscada" da tela)
       if (savedSupabaseToken) {
-        setSupabaseToken(savedSupabaseToken);
+        router.push('/install/wizard');
+        return;
       } else {
         setScreen('supabase');
       }
