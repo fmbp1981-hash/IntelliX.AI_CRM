@@ -1,3 +1,14 @@
+## 30/12/2025
+
+- **Correção de atualização de listas sem refresh manual (rotas protegidas)**: ajustes nos hooks de TanStack Query para evitar queries executando antes do auth estar pronto e garantir atualização imediata do cache após criar/editar/excluir contatos.
+- **Detalhes técnicos**:
+  - Adicionado `enabled: !authLoading && !!user` em queries que acessam Supabase e podiam rodar “cedo demais” (ex.: paginação de contatos e queries por board), evitando cache inicial vazio/stale.
+  - `useCreateContact` agora faz update otimista também nas queries `contacts.paginated(...)` (primeira página), além de `contacts.lists()`, substituindo o “temp id” pelo registro real em `onSuccess` e mantendo rollback seguro em erro.
+- **Melhoria de performance no bulk delete de contatos**: substituído loop sequencial por deleção em lotes com concorrência limitada e invalidação única ao final para reduzir tempo total e evitar “refetch storm”.
+- **UX: criação de contato fecha o modal no início da mutation**: modal agora fecha imediatamente ao clicar em “Criar”, com feedback “Criando…”/toast e rollback via TanStack Query em caso de erro.
+- **UX: criação de empresa (modal) fecha imediatamente**: ao criar empresa pela aba de empresas, fechamos o modal na ação e reabrimos em caso de erro.
+- **Performance: bulk delete de empresas**: deleção em lotes com concorrência limitada e invalidação única (inclui invalidação de contatos/deals por desvinculação de FK).
+
 # Changelog
 
 ## 30/12/2025

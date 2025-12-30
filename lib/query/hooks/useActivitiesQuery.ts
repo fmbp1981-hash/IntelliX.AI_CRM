@@ -73,6 +73,7 @@ export const useActivities = (filters?: ActivitiesFilters) => {
  * Hook to fetch activities for a specific deal
  */
 export const useActivitiesByDeal = (dealId: string | undefined) => {
+  const { user, loading: authLoading } = useAuth();
   return useQuery({
     queryKey: queryKeys.activities.byDeal(dealId || ''),
     queryFn: async () => {
@@ -81,7 +82,7 @@ export const useActivitiesByDeal = (dealId: string | undefined) => {
       const filtered = (data || []).filter(a => a.dealId === dealId);
       return sortActivitiesSmart(filtered);
     },
-    enabled: !!dealId,
+    enabled: !authLoading && !!user && !!dealId,
   });
 };
 
@@ -89,6 +90,7 @@ export const useActivitiesByDeal = (dealId: string | undefined) => {
  * Hook to fetch pending activities (not completed)
  */
 export const usePendingActivities = () => {
+  const { user, loading: authLoading } = useAuth();
   return useQuery({
     queryKey: queryKeys.activities.list({ completed: false }),
     queryFn: async () => {
@@ -97,6 +99,7 @@ export const usePendingActivities = () => {
       const filtered = (data || []).filter(a => !a.completed);
       return sortActivitiesSmart(filtered);
     },
+    enabled: !authLoading && !!user,
   });
 };
 
@@ -104,6 +107,7 @@ export const usePendingActivities = () => {
  * Hook to fetch today's activities
  */
 export const useTodayActivities = () => {
+  const { user, loading: authLoading } = useAuth();
   const today = new Date().toISOString().split('T')[0];
 
   return useQuery({
@@ -115,6 +119,7 @@ export const useTodayActivities = () => {
       return sortActivitiesSmart(filtered);
     },
     staleTime: 30 * 1000, // 30 seconds - very fresh for today's view
+    enabled: !authLoading && !!user,
   });
 };
 

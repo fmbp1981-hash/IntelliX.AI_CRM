@@ -138,6 +138,7 @@ export const useDealsView = (filters?: DealsFilters) => {
  * Hook to fetch a single deal by ID
  */
 export const useDeal = (id: string | undefined) => {
+  const { user, loading: authLoading } = useAuth();
   return useQuery({
     queryKey: queryKeys.deals.detail(id || ''),
     queryFn: async () => {
@@ -146,7 +147,7 @@ export const useDeal = (id: string | undefined) => {
       if (error) throw error;
       return data;
     },
-    enabled: !!id,
+    enabled: !authLoading && !!user && !!id,
   });
 };
 
@@ -154,6 +155,7 @@ export const useDeal = (id: string | undefined) => {
  * Hook to fetch deals by board (for Kanban view) - Returns DealView[]
  */
 export const useDealsByBoard = (boardId: string) => {
+  const { user, loading: authLoading } = useAuth();
   return useQuery<DealView[]>({
     queryKey: queryKeys.deals.list({ boardId }),
     queryFn: async () => {
@@ -195,7 +197,7 @@ export const useDealsByBoard = (boardId: string) => {
       return enrichedDeals;
     },
     staleTime: 1 * 60 * 1000, // 1 minute for kanban (more interactive)
-    enabled: !!boardId, // Only fetch when boardId is valid
+    enabled: !authLoading && !!user && !!boardId, // Only fetch when auth is ready and boardId is valid
   });
 };
 

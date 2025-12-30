@@ -37,6 +37,7 @@ dev_server.log
 
 # Cursor IDE (plans are local/personal)
 .cursor/plans/
+.cursor/debug.log
 
 # testsprite generated artifacts (may contain PII)
 testsprite_tests/tmp/

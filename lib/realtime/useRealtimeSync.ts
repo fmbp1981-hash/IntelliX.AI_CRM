@@ -107,7 +107,7 @@ export function useRealtimeSync(
             console.log(`[Realtime] ${table} ${payload.eventType}:`, payload);
           }
 
-          // Call custom callback if provided
+          // Call custom callback (if provided)
           onchangeRef.current?.(payload);
 
           // Queue query keys for invalidation (lazy loaded)

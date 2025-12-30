@@ -37,6 +37,7 @@ export const useBoards = () => {
  * Hook to fetch a single board by ID
  */
 export const useBoard = (id: string | undefined) => {
+  const { user, loading: authLoading } = useAuth();
   return useQuery({
     queryKey: queryKeys.boards.detail(id || ''),
     queryFn: async () => {
@@ -44,7 +45,7 @@ export const useBoard = (id: string | undefined) => {
       if (error) throw error;
       return (data || []).find(b => b.id === id) || null;
     },
-    enabled: !!id,
+    enabled: !authLoading && !!user && !!id,
   });
 };
 
@@ -182,13 +183,14 @@ export const useDeleteBoardWithMove = () => {
  * Hook to check if a board can be deleted
  */
 export const useCanDeleteBoard = (boardId: string | undefined) => {
+  const { user, loading: authLoading } = useAuth();
   return useQuery({
     queryKey: [...queryKeys.boards.detail(boardId || ''), 'canDelete'] as const,
     queryFn: async () => {
       if (!boardId) return { canDelete: true, dealCount: 0 };
       return await boardsService.canDelete(boardId);
     },
-    enabled: !!boardId,
+    enabled: !authLoading && !!user && !!boardId,
   });
 };
 
