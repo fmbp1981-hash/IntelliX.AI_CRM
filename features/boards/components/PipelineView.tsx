@@ -56,7 +56,7 @@ interface PipelineViewProps {
   filteredDeals: DealView[];
   customFieldDefinitions: CustomFieldDefinition[];
   isLoading: boolean;
-  handleDragStart: (e: React.DragEvent, id: string) => void;
+  handleDragStart: (e: React.DragEvent, id: string, title: string) => void;
   handleDragOver: (e: React.DragEvent) => void;
   handleDrop: (e: React.DragEvent, stageId: string) => void;
   /** Keyboard-accessible handler to move a deal to a new stage */
@@ -76,6 +76,7 @@ interface PipelineViewProps {
   } | null;
   handleLossReasonConfirm: (reason: string) => void;
   handleLossReasonClose: () => void;
+  boardCreateOverlay?: { title: string; subtitle?: string } | null;
 }
 
 /**
@@ -240,10 +241,19 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
   lossReasonModal,
   handleLossReasonConfirm,
   handleLossReasonClose,
+  boardCreateOverlay,
 }) => {
   const { profile } = useAuth();
   const isAdmin = profile?.role === 'admin';
   const [isExportModalOpen, setIsExportModalOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    // #region agent log
+    if (process.env.NODE_ENV !== 'production') {
+      fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'board-appear-lag',hypothesisId:'BL2',location:'features/boards/components/PipelineView.tsx:useEffect',message:'PipelineView render snapshot',data:{isLoading,boardsCount:boards.length,activeBoardId8:(activeBoardId||'').slice(0,8)||null,hasActiveBoard:!!activeBoard,viewMode},timestamp:Date.now()})}).catch(()=>{});
+    }
+    // #endregion
+  }, [isLoading, boards.length, activeBoardId, !!activeBoard, viewMode]);
 
   const handleUpdateStage = (updatedStage: BoardStage) => {
     if (!activeBoard) return;
@@ -252,6 +262,11 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
   };
 
   if (isLoading) {
+    // #region agent log
+    if (process.env.NODE_ENV !== 'production') {
+      fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'board-appear-lag',hypothesisId:'BL3',location:'features/boards/components/PipelineView.tsx:return',message:'PipelineView showing PageLoader (isLoading=true)',data:{boardsCount:boards.length,activeBoardId8:(activeBoardId||'').slice(0,8)||null,hasActiveBoard:!!activeBoard,viewMode},timestamp:Date.now()})}).catch(()=>{});
+    }
+    // #endregion
     return (
       <div className="h-full">
         <PageLoader />
@@ -261,8 +276,41 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
 
   return (
     <div className="h-full flex flex-col">
+      {boardCreateOverlay && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/65 backdrop-blur-sm" />
+          <div className="relative z-10 w-[min(520px,calc(100vw-2rem))] rounded-2xl border border-white/10 bg-white/95 dark:bg-slate-900/95 backdrop-blur p-5 shadow-2xl">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 h-5 w-5 rounded-full border-2 border-primary-500/30 border-t-primary-500 animate-spin" />
+              <div className="min-w-0 flex-1">
+                <div className="text-base font-semibold text-slate-900 dark:text-white">
+                  {boardCreateOverlay.title}
+                </div>
+                {boardCreateOverlay.subtitle && (
+                  <div className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                    {boardCreateOverlay.subtitle}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="h-2 w-full rounded-full bg-slate-200 dark:bg-white/10 overflow-hidden">
+                <div className="h-full w-1/2 bg-primary-500/80 animate-pulse" />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {!activeBoard ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+          {/* #region agent log */}
+          {(() => {
+            if (process.env.NODE_ENV !== 'production') {
+              fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'board-refresh-empty-state',hypothesisId:'E1',location:'features/boards/components/PipelineView.tsx:emptyState',message:'PipelineView rendering EMPTY STATE (!activeBoard)',data:{isLoading,boardsCount:boards.length,activeBoardId8:(activeBoardId||'').slice(0,8)||null,hasActiveBoard:false,viewMode},timestamp:Date.now()})}).catch(()=>{});
+            }
+            return null;
+          })()}
+          {/* #endregion */}
           <div className="w-24 h-24 bg-primary-50 dark:bg-primary-900/20 rounded-full flex items-center justify-center mb-6">
             <span className="text-4xl">🚀</span>
           </div>

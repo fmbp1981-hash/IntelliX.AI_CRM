@@ -61,6 +61,12 @@ export function useRealtimeSync(
   const [isConnected, setIsConnected] = useState(false);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingInvalidationsRef = useRef<Set<readonly unknown[]>>(new Set());
+  const pendingInvalidateOnlyRef = useRef<Set<readonly unknown[]>>(new Set());
+  // Track bursty board_stages INSERTs (creating a board inserts multiple stages).
+  // We'll refetch on single INSERT (realtime stage created by someone else),
+  // but avoid storms on bursts (treat burst as invalidate-only).
+  const pendingBoardStagesInsertCountRef = useRef(0);
+  const flushScheduledRef = useRef(false);
   const onchangeRef = useRef(onchange);
   
   // Keep callback ref up to date without causing re-renders
@@ -112,85 +118,69 @@ export function useRealtimeSync(
 
           // Queue query keys for invalidation (lazy loaded)
           const keys = getTableQueryKeys(table);
-          keys.forEach(key => pendingInvalidationsRef.current.add(key));
+          // NOTE: `board_stages` INSERTs happen in bursts when creating a board (one per stage).
+          // Refetching boards on each stage INSERT causes a request storm.
+          // For that specific case, we can refetch on a single INSERT (true realtime),
+          // but treat bursts as invalidate-only and let the board create mutation handle timing.
+          if (payload.eventType === 'INSERT' && table === 'board_stages') {
+            keys.forEach(key => pendingInvalidateOnlyRef.current.add(key));
+            pendingBoardStagesInsertCountRef.current += 1;
+          } else {
+            keys.forEach(key => pendingInvalidationsRef.current.add(key));
+          }
 
-          // For INSERT events, refetch immediately (no debounce) for instant UI updates
-          // For UPDATE/DELETE, use debounce to batch multiple rapid changes
+          // INSERT events can happen in bursts (ex.: creating a board inserts multiple board_stages).
+          // Instead of refetching per-row, batch within the same tick using a microtask.
+          // This keeps UI instant (optimistic updates handle UX) while preventing refetch storms.
           if (payload.eventType === 'INSERT') {
-            // Clear any pending debounce
-            if (debounceTimerRef.current) {
-              clearTimeout(debounceTimerRef.current);
-              debounceTimerRef.current = null;
+            // #region agent log
+            if (process.env.NODE_ENV !== 'production') {
+              fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'board-appear-lag',hypothesisId:'RT1',location:'lib/realtime/useRealtimeSync.ts:useRealtimeSync',message:'Realtime INSERT queued (microtask batch)',data:{table,eventType:payload.eventType,pendingKeys:pendingInvalidationsRef.current.size},timestamp:Date.now()})}).catch(()=>{});
             }
-            
-            // Invalidate and refetch immediately for INSERTs
-            // According to TanStack Query v5 docs:
-            // - invalidateQueries() marks queries as stale but doesn't force immediate refetch
-            // - refetchQueries() forces immediate refetch of matching queries
-            // - We use both to ensure: 1) mark as stale, 2) force immediate refetch
-            pendingInvalidationsRef.current.forEach(queryKey => {
-              if (DEBUG_REALTIME) {
-                console.log(`[Realtime] Invalidating and refetching queries immediately for INSERT:`, queryKey);
-                
-                // Check if there are any queries in cache matching this key
-                const cache = queryClient.getQueryCache();
-                const matchingQueries = cache.findAll({ queryKey, exact: false });
-                console.log(`[Realtime] Found ${matchingQueries.length} queries in cache for key:`, queryKey);
-                
-                // Log query states for debugging
-                matchingQueries.forEach((query, idx) => {
-                  console.log(`[Realtime] Query ${idx + 1}:`, {
-                    queryKey: query.queryKey,
-                    state: query.state.status,
-                    isStale: query.isStale(),
+            // #endregion
+
+            if (!flushScheduledRef.current) {
+              flushScheduledRef.current = true;
+              queueMicrotask(() => {
+                flushScheduledRef.current = false;
+
+                const keysToFlush = Array.from(pendingInvalidationsRef.current);
+                pendingInvalidationsRef.current.clear();
+                const keysInvalidateOnly = Array.from(pendingInvalidateOnlyRef.current);
+                pendingInvalidateOnlyRef.current.clear();
+                const boardStagesInsertCount = pendingBoardStagesInsertCountRef.current;
+                pendingBoardStagesInsertCountRef.current = 0;
+
+                // #region agent log
+                if (process.env.NODE_ENV !== 'production') {
+                  fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'board-appear-lag',hypothesisId:'RT2',location:'lib/realtime/useRealtimeSync.ts:useRealtimeSync',message:'Realtime microtask flush (invalidateQueries)',data:{keysCount:keysToFlush.length},timestamp:Date.now()})}).catch(()=>{});
+                }
+                // #endregion
+                // #region agent log
+                if (process.env.NODE_ENV !== 'production') {
+                  fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'board-appear-lag',hypothesisId:'RT3',location:'lib/realtime/useRealtimeSync.ts:useRealtimeSync',message:'Realtime microtask flush (invalidate-only)',data:{keysCount:keysInvalidateOnly.length,boardStagesInsertCount},timestamp:Date.now()})}).catch(()=>{});
+                }
+                // #endregion
+
+                keysToFlush.forEach((queryKey) => {
+                  queryClient.invalidateQueries({
+                    queryKey,
+                    exact: false,
+                    refetchType: 'all',
                   });
                 });
-              }
-              
-              // Step 1: Invalidate and force refetch of all matching queries
-              // According to TanStack Query v5 docs:
-              // - invalidateQueries with refetchType: 'all' marks as stale AND refetches all matching queries
-              // - This bypasses staleTime and ensures instant update
-              // - exact: false matches all queries that start with this key
-              queryClient.invalidateQueries({ 
-                queryKey,
-                exact: false, // Match all queries that start with this key
-                refetchType: 'all', // Force refetch of ALL matching queries (not just active)
-              });
-              
-              // Step 2: Also try refetchQueries as fallback
-              // This ensures queries are refetched even if invalidateQueries doesn't work
-              const refetchPromise = queryClient.refetchQueries({ 
-                queryKey,
-                exact: false, // Match all queries that start with this key
-                type: 'all', // Refetch all matching queries (not just active)
-              });
-              
-              // Log result for debugging
-              if (DEBUG_REALTIME) {
-                refetchPromise
-                  .then((result) => {
-                    // refetchQueries returns a Promise that resolves to an array of query results (TanStack Query v5)
-                    const refetchedCount = Array.isArray(result) ? result.length : 0;
-                    if (refetchedCount > 0) {
-                      console.log(`[Realtime] ✅ Successfully refetched ${refetchedCount} queries for key:`, queryKey);
-                    } else {
-                      // Note: invalidateQueries with refetchType: 'all' above should have already refetched
-                      // This is just a fallback, so no warning needed if it's 0
-                      console.log(`[Realtime] ℹ️ Refetch fallback: ${refetchedCount} queries (invalidateQueries should have already handled it)`);
-                    }
-                  })
-                  .catch((err) => {
-                    console.error(`[Realtime] ❌ Error refetching queries:`, err);
+
+                // For bursty INSERT sources (ex.: board_stages create-board burst),
+                // invalidate-only (no refetch) to avoid storms. But for single INSERT, refetch to keep realtime UX.
+                keysInvalidateOnly.forEach((queryKey) => {
+                  queryClient.invalidateQueries({
+                    queryKey,
+                    exact: false,
+                    refetchType: boardStagesInsertCount <= 1 ? 'all' : 'none',
                   });
-              } else {
-                // Still catch errors even when not logging
-                refetchPromise.catch((err) => {
-                  console.error(`[Realtime] ❌ Error refetching queries:`, err);
                 });
-              }
-            });
-            pendingInvalidationsRef.current.clear();
+              });
+            }
           } else {
             // Debounce invalidation for UPDATE/DELETE
             if (debounceTimerRef.current) {

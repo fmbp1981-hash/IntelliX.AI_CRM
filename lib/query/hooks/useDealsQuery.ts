@@ -159,8 +159,23 @@ export const useDealsByBoard = (boardId: string) => {
   return useQuery<DealView[]>({
     queryKey: queryKeys.deals.list({ boardId }),
     queryFn: async () => {
+      const t0 = Date.now();
+      // #region agent log
+      if (process.env.NODE_ENV !== 'production') {
+        fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'ux-lag-board-deal',hypothesisId:'D8',location:'lib/query/hooks/useDealsQuery.ts:useDealsByBoard:queryFn',message:'Fetching dealsByBoard',data:{boardId8:(boardId||'').slice(0,8)||null,authReady:!authLoading&&!!user},timestamp:Date.now()})}).catch(()=>{});
+      }
+      // #endregion
       // Guard: should never happen due to 'enabled', but safety first
       if (!boardId) return [];
+      // If we're on an optimistic temp board, don't hit the backend.
+      if (boardId.startsWith('temp-')) {
+        // #region agent log
+        if (process.env.NODE_ENV !== 'production') {
+          fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'ux-lag-board-deal',hypothesisId:'D9',location:'lib/query/hooks/useDealsQuery.ts:useDealsByBoard:queryFn',message:'Skipping dealsByBoard fetch for temp board id',data:{boardId8:(boardId||'').slice(0,8)||null},timestamp:Date.now()})}).catch(()=>{});
+        }
+        // #endregion
+        return [];
+      }
       // Fetch all data in parallel (including stages for stageLabel)
       const [dealsResult, contactsResult, companiesResult, stagesResult] = await Promise.all([
         dealsService.getAll(),
@@ -194,10 +209,15 @@ export const useDealsByBoard = (boardId: string) => {
         };
       });
 
+      // #region agent log
+      if (process.env.NODE_ENV !== 'production') {
+        fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'ux-lag-board-deal',hypothesisId:'D8',location:'lib/query/hooks/useDealsQuery.ts:useDealsByBoard:queryFn',message:'Fetched dealsByBoard',data:{boardId8:(boardId||'').slice(0,8)||null,count:enrichedDeals.length,ms:Date.now()-t0},timestamp:Date.now()})}).catch(()=>{});
+      }
+      // #endregion
       return enrichedDeals;
     },
     staleTime: 1 * 60 * 1000, // 1 minute for kanban (more interactive)
-    enabled: !authLoading && !!user && !!boardId, // Only fetch when auth is ready and boardId is valid
+    enabled: !authLoading && !!user && !!boardId && !boardId.startsWith('temp-'),
   });
 };
 

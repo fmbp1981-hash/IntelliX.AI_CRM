@@ -6,7 +6,9 @@ import React, {
   useEffect,
   useCallback,
   ReactNode,
+  useRef,
 } from 'react';
+import { usePathname } from 'next/navigation';
 import { LifecycleStage, Product, CustomFieldDefinition, Lead } from '@/types';
 import { settingsService, lifecycleStagesService, productsService } from '@/lib/supabase';
 import { useAuth } from '../AuthContext';
@@ -106,6 +108,7 @@ const SettingsContext = createContext<SettingsContextType | undefined>(undefined
  */
 export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { profile } = useAuth();
+  const pathname = usePathname();
 
   // State
   const [loading, setLoading] = useState(true);
@@ -166,6 +169,16 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
   // UI State
   const [isGlobalAIOpen, setIsGlobalAIOpen] = useState(false);
 
+  // Avoid duplicate network calls (dev StrictMode / profile hydration)
+  const aiConfigLoadedForUserRef = useRef<string | null>(null);
+  const aiFeaturesLoadedForUserRef = useRef<string | null>(null);
+
+  const shouldLoadAiFeatures = useMemo(() => {
+    // Load feature flags only when needed (settings UI / global AI UI).
+    const inAiSettings = (pathname || '').startsWith('/settings/ai');
+    return Boolean(inAiSettings || isGlobalAIOpen);
+  }, [pathname, isGlobalAIOpen]);
+
   // Fetch settings on mount
   const fetchSettings = useCallback(async () => {
     if (!profile) {
@@ -186,38 +199,67 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
       }
 
       // Config org-wide (fonte de verdade): provider/model/keys em organization_settings
-      const aiRes = await fetch('/api/settings/ai', {
-        method: 'GET',
-        headers: { accept: 'application/json' },
-        credentials: 'include',
-      });
+      // Keep this eager: other parts of the UI need to know if AI is enabled / key configured.
+      if (aiConfigLoadedForUserRef.current !== profile.id) {
+        const t0 = Date.now();
+        // Mark as "in-flight" immediately to avoid duplicate requests in dev StrictMode
+        // where effects can run twice before the first request completes.
+        aiConfigLoadedForUserRef.current = profile.id;
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'settings-ai-load',hypothesisId:'AISET1',location:'context/settings/SettingsContext.tsx:fetchSettings',message:'Fetching /api/settings/ai (eager)',data:{path:(pathname||'').slice(0,40)||'/',userId8:profile.id.slice(0,8)},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
+        try {
+          const aiRes = await fetch('/api/settings/ai', {
+            method: 'GET',
+            headers: { accept: 'application/json' },
+            credentials: 'include',
+          });
 
-      if (aiRes.ok) {
-        const aiData = (await aiRes.json()) as {
-          aiEnabled: boolean;
-          aiProvider: AIConfig['provider'];
-          aiModel: string;
-          aiGoogleKey: string;
-          aiOpenaiKey: string;
-          aiAnthropicKey: string;
-          aiHasGoogleKey?: boolean;
-          aiHasOpenaiKey?: boolean;
-          aiHasAnthropicKey?: boolean;
-        };
+          if (aiRes.ok) {
+            const aiData = (await aiRes.json()) as {
+              aiEnabled: boolean;
+              aiProvider: AIConfig['provider'];
+              aiModel: string;
+              aiGoogleKey: string;
+              aiOpenaiKey: string;
+              aiAnthropicKey: string;
+              aiHasGoogleKey?: boolean;
+              aiHasOpenaiKey?: boolean;
+              aiHasAnthropicKey?: boolean;
+            };
 
-        setAiOrgEnabledState(typeof aiData.aiEnabled === 'boolean' ? aiData.aiEnabled : true);
-        setAiProviderState(aiData.aiProvider);
-        setAiModelState(aiData.aiModel);
-        setAiGoogleKeyState(aiData.aiGoogleKey);
-        setAiOpenaiKeyState(aiData.aiOpenaiKey);
-        setAiAnthropicKeyState(aiData.aiAnthropicKey);
-        setAiHasGoogleKey(Boolean(aiData.aiHasGoogleKey));
-        setAiHasOpenaiKey(Boolean(aiData.aiHasOpenaiKey));
-        setAiHasAnthropicKey(Boolean(aiData.aiHasAnthropicKey));
+            setAiOrgEnabledState(typeof aiData.aiEnabled === 'boolean' ? aiData.aiEnabled : true);
+            setAiProviderState(aiData.aiProvider);
+            setAiModelState(aiData.aiModel);
+            setAiGoogleKeyState(aiData.aiGoogleKey);
+            setAiOpenaiKeyState(aiData.aiOpenaiKey);
+            setAiAnthropicKeyState(aiData.aiAnthropicKey);
+            setAiHasGoogleKey(Boolean(aiData.aiHasGoogleKey));
+            setAiHasOpenaiKey(Boolean(aiData.aiHasOpenaiKey));
+            setAiHasAnthropicKey(Boolean(aiData.aiHasAnthropicKey));
+          } else {
+            const body = await aiRes.json().catch(() => null);
+            const message = body?.error || `Falha ao carregar config de IA (HTTP ${aiRes.status})`;
+            console.warn('[Settings] Falha ao carregar config org-wide de IA:', message);
+            // Allow retry on next mount if request failed.
+            aiConfigLoadedForUserRef.current = null;
+          }
+        } catch (e) {
+          // Allow retry on transient errors.
+          aiConfigLoadedForUserRef.current = null;
+          throw e;
+        }
+        // #region agent log
+        if (process.env.NODE_ENV !== 'production') {
+          fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'settings-ai-load',hypothesisId:'AISET1',location:'context/settings/SettingsContext.tsx:fetchSettings',message:'Finished /api/settings/ai (eager)',data:{ms:Date.now()-t0},timestamp:Date.now()})}).catch(()=>{});
+        }
+        // #endregion
       } else {
-        const body = await aiRes.json().catch(() => null);
-        const message = body?.error || `Falha ao carregar config de IA (HTTP ${aiRes.status})`;
-        console.warn('[Settings] Falha ao carregar config org-wide de IA:', message);
+        // #region agent log
+        if (process.env.NODE_ENV !== 'production') {
+          fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'settings-ai-load',hypothesisId:'AISET1',location:'context/settings/SettingsContext.tsx:fetchSettings',message:'Skipped /api/settings/ai (already loaded for user)',data:{userId8:profile.id.slice(0,8)},timestamp:Date.now()})}).catch(()=>{});
+        }
+        // #endregion
       }
 
       // Fetch lifecycle stages
@@ -228,19 +270,6 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
 
       // Fetch products catalog (active only)
       await refreshProducts();
-
-      // Fetch AI feature flags (org-wide)
-      const ffRes = await fetch('/api/settings/ai-features', {
-        method: 'GET',
-        headers: { accept: 'application/json' },
-        credentials: 'include',
-      });
-      if (ffRes.ok) {
-        const ffData = (await ffRes.json().catch(() => null)) as any;
-        setAiFeatureFlags((ffData?.flags as Record<string, boolean>) || {});
-      } else {
-        console.warn('[Settings] Falha ao carregar flags de IA (features).', { status: ffRes.status });
-      }
     } catch (e) {
       console.error('Error fetching settings:', e);
       setError(e instanceof Error ? e.message : 'Failed to fetch settings');
@@ -252,6 +281,50 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
   useEffect(() => {
     fetchSettings();
   }, [fetchSettings]);
+
+  // Lazy-load AI feature flags only when needed (settings/ai or global AI UI).
+  useEffect(() => {
+    if (!profile) return;
+    if (!shouldLoadAiFeatures) return;
+    if (aiFeaturesLoadedForUserRef.current === profile.id) return;
+
+    const t0 = Date.now();
+    // #region agent log
+    if (process.env.NODE_ENV !== 'production') {
+      fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'settings-ai-load',hypothesisId:'AISET2',location:'context/settings/SettingsContext.tsx:useEffect(ai-features)',message:'Fetching /api/settings/ai-features (lazy)',data:{path:(pathname||'').slice(0,40)||'/',isGlobalAIOpen,userId8:profile.id.slice(0,8)},timestamp:Date.now()})}).catch(()=>{});
+    }
+    // #endregion
+
+    // Mark as in-flight immediately to prevent duplicate requests in dev StrictMode.
+    aiFeaturesLoadedForUserRef.current = profile.id;
+
+    (async () => {
+      try {
+        const ffRes = await fetch('/api/settings/ai-features', {
+          method: 'GET',
+          headers: { accept: 'application/json' },
+          credentials: 'include',
+        });
+        if (ffRes.ok) {
+          const ffData = (await ffRes.json().catch(() => null)) as any;
+          setAiFeatureFlags((ffData?.flags as Record<string, boolean>) || {});
+        } else {
+          console.warn('[Settings] Falha ao carregar flags de IA (features).', { status: ffRes.status });
+          // Allow retry on failure
+          aiFeaturesLoadedForUserRef.current = null;
+        }
+      } catch {
+        // Allow retry on transient errors
+        aiFeaturesLoadedForUserRef.current = null;
+      } finally {
+        // #region agent log
+        if (process.env.NODE_ENV !== 'production') {
+          fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'settings-ai-load',hypothesisId:'AISET2',location:'context/settings/SettingsContext.tsx:useEffect(ai-features)',message:'Finished /api/settings/ai-features (lazy)',data:{ms:Date.now()-t0},timestamp:Date.now()})}).catch(()=>{});
+        }
+        // #endregion
+      }
+    })();
+  }, [profile, pathname, isGlobalAIOpen, shouldLoadAiFeatures]);
 
   // Allow UIs (ex.: Settings → Produtos) to notify the app to reload the catalog.
   useEffect(() => {

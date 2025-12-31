@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { DealView, Board, CustomFieldDefinition } from '@/types';
 import {
@@ -65,7 +65,13 @@ export const useBoardsController = () => {
   const { setContext, clearContext } = useAI();
 
   // TanStack Query hooks
-  const { data: boards = [], isLoading: boardsLoading, isFetched: boardsFetched } = useBoards();
+  const {
+    data: boards = [],
+    isLoading: boardsLoading,
+    isFetched: boardsFetched,
+    isFetching: boardsFetching,
+    dataUpdatedAt: boardsUpdatedAt,
+  } = useBoards();
   const { data: defaultBoard } = useDefaultBoard();
   const createBoardMutation = useCreateBoard();
   const updateBoardMutation = useUpdateBoard();
@@ -106,10 +112,50 @@ export const useBoardsController = () => {
   // ID efetivo - garante que é sempre do board que está sendo exibido
   const effectiveActiveBoardId = activeBoard?.id || null;
 
-  // Deals for active board - usa o ID efetivo
-  const { data: deals = [], isLoading: dealsLoading } = useDealsByBoard(effectiveActiveBoardId || '');
+  // Deals for active board
+  // Perf-first: use the persisted activeBoardId to start fetching deals immediately on hard refresh,
+  // without waiting for boards list to resolve `activeBoard`.
+  // Safety: if the ID is stale (board deleted), the boards effect below will correct activeBoardId
+  // and we'll naturally refetch deals for the corrected board.
+  const dealsBoardId = activeBoardId || '';
+  const { data: deals = [], isLoading: dealsLoading } = useDealsByBoard(dealsBoardId);
   const moveDealMutation = useMoveDeal();
   const createActivityMutation = useCreateActivity();
+
+  // Debug: which boardId is driving the deals query on refresh?
+  const lastDealsBoardIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (lastDealsBoardIdRef.current === dealsBoardId) return;
+    const prev = lastDealsBoardIdRef.current;
+    lastDealsBoardIdRef.current = dealsBoardId;
+    // #region agent log
+    if (process.env.NODE_ENV !== 'production') {
+      fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'board-refresh-deals-lag',hypothesisId:'R0',location:'features/boards/hooks/useBoardsController.ts:dealsBoardId',message:'dealsBoardId changed (query driver)',data:{prevId8:(prev||'').slice(0,8)||null,nextId8:(dealsBoardId||'').slice(0,8)||null,effectiveId8:(effectiveActiveBoardId||'').slice(0,8)||null,boardsLoading,boardsCount:boards.length},timestamp:Date.now()})}).catch(()=>{});
+    }
+    // #endregion
+  }, [dealsBoardId, effectiveActiveBoardId, boardsLoading, boards.length]);
+
+  // Track why deals appear ~1s after board on hard refresh: when the effective board ID becomes available
+  const lastEffectiveBoardIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (lastEffectiveBoardIdRef.current === effectiveActiveBoardId) return;
+    const prev = lastEffectiveBoardIdRef.current;
+    lastEffectiveBoardIdRef.current = effectiveActiveBoardId;
+    // #region agent log
+    if (process.env.NODE_ENV !== 'production') {
+      fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'board-refresh-deals-lag',hypothesisId:'R1',location:'features/boards/hooks/useBoardsController.ts:effectiveActiveBoardId',message:'effectiveActiveBoardId changed',data:{prevId8:(prev||'').slice(0,8)||null,nextId8:(effectiveActiveBoardId||'').slice(0,8)||null,boardsLoading,boardsCount:boards.length,hasDefaultBoard:!!defaultBoard},timestamp:Date.now()})}).catch(()=>{});
+    }
+    // #endregion
+  }, [effectiveActiveBoardId, boardsLoading, boards.length, defaultBoard]);
+
+  // Track deals loading transitions relative to effective board selection
+  useEffect(() => {
+    // #region agent log
+    if (process.env.NODE_ENV !== 'production') {
+      fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'board-refresh-deals-lag',hypothesisId:'R2',location:'features/boards/hooks/useBoardsController.ts:dealsLoading',message:'Deals loading snapshot',data:{boardId8:(effectiveActiveBoardId||'').slice(0,8)||null,dealsLoading,dealsCount:deals.length},timestamp:Date.now()})}).catch(()=>{});
+    }
+    // #endregion
+  }, [effectiveActiveBoardId, dealsLoading, deals.length]);
 
   // Filter State (declared before AI context useEffect that uses them)
   const [searchTerm, setSearchTerm] = useState('');
@@ -223,6 +269,10 @@ export const useBoardsController = () => {
   const [isCreateBoardModalOpen, setIsCreateBoardModalOpen] = useState(false);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [editingBoard, setEditingBoard] = useState<Board | null>(null);
+  const [boardCreateOverlay, setBoardCreateOverlay] = useState<{
+    title: string;
+    subtitle?: string;
+  } | null>(null);
   const [boardToDelete, setBoardToDelete] = useState<{
     id: string;
     name: string;
@@ -280,7 +330,37 @@ export const useBoardsController = () => {
   };
 
   // Combined loading state
-  const isLoading = boardsLoading || dealsLoading;
+  // Avoid full-page "blink": dealsLoading can briefly flip to true when switching
+  // from temp board id -> real board id. Keep the page rendered and let deals load in-place.
+  // Also avoid the "empty state flash" on hard refresh: hold the loader until the FIRST successful
+  // boards fetch happened (dataUpdatedAt>0). This is more robust than relying solely on `isFetched`,
+  // which can be true via cache/hydration even when the live fetch hasn't run yet.
+  const hasEverLoadedBoards = boardsUpdatedAt > 0;
+  const isLoading = (boardsLoading || boardsFetching || !hasEverLoadedBoards) && boards.length === 0;
+
+  // Debug: understand why empty state might render on refresh
+  useEffect(() => {
+    // #region agent log
+    if (process.env.NODE_ENV !== 'production') {
+      fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'board-refresh-empty-state',hypothesisId:'E0',location:'features/boards/hooks/useBoardsController.ts:boardsMeta',message:'Boards meta snapshot (for empty-state gating)',data:{boardsLoading,boardsFetching,boardsFetched,boardsUpdatedAt,hasEverLoadedBoards,boardsCount:boards.length,activeBoardId8:(activeBoardId||'').slice(0,8)||null,effectiveActiveBoardId8:(effectiveActiveBoardId||'').slice(0,8)||null,isLoading},timestamp:Date.now()})}).catch(()=>{});
+    }
+    // #endregion
+  }, [boardsLoading, boardsFetching, boardsFetched, boardsUpdatedAt, hasEverLoadedBoards, boards.length, activeBoardId, effectiveActiveBoardId, isLoading]);
+
+  useEffect(() => {
+    // #region agent log
+    if (process.env.NODE_ENV !== 'production') {
+      fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'start-from-zero',hypothesisId:'Z2',location:'features/boards/hooks/useBoardsController.ts:modalState',message:'BoardsController modal state changed',data:{isWizardOpen,isCreateBoardModalOpen,hasEditingBoard:!!editingBoard},timestamp:Date.now()})}).catch(()=>{});
+    }
+    // #endregion
+  }, [isWizardOpen, isCreateBoardModalOpen, !!editingBoard]);
+  useEffect(() => {
+    // #region agent log
+    if (process.env.NODE_ENV !== 'production') {
+      fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'board-appear-lag',hypothesisId:'BL1',location:'features/boards/hooks/useBoardsController.ts:isLoading',message:'BoardsController loading snapshot',data:{boardsLoading,dealsLoading,isLoading,boardsCount:boards.length,dealsCount:deals.length,activeBoardId8:(activeBoardId||'').slice(0,8)||null,effectiveActiveBoardId8:(effectiveActiveBoardId||'').slice(0,8)||null},timestamp:Date.now()})}).catch(()=>{});
+    }
+    // #endregion
+  }, [boardsLoading, dealsLoading, isLoading, boards.length, deals.length, activeBoardId, effectiveActiveBoardId]);
 
   useEffect(() => {
     const handleClickOutside = () => setOpenActivityMenuId(null);
@@ -350,9 +430,11 @@ export const useBoardsController = () => {
   }, [deals, searchTerm, ownerFilter, dateRange, statusFilter, profile]);
 
   // Drag & Drop Handlers
-  const handleDragStart = (e: React.DragEvent, id: string) => {
+  const handleDragStart = (e: React.DragEvent, id: string, title: string) => {
     setDraggingId(id);
     e.dataTransfer.setData('dealId', id);
+    // Fallback when optimistic temp id gets replaced mid-drag (avoid logging title).
+    e.dataTransfer.setData('dealTitle', title || '');
     e.dataTransfer.effectAllowed = 'move';
   };
 
@@ -364,12 +446,61 @@ export const useBoardsController = () => {
   const handleDrop = (e: React.DragEvent, stageId: string) => {
     e.preventDefault();
     const dealId = e.dataTransfer.getData('dealId') || lastMouseDownDealId.current;
+    const dealTitle = e.dataTransfer.getData('dealTitle') || '';
+    // #region agent log
+    if (process.env.NODE_ENV !== 'production') {
+      fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'deal-move-first-time',hypothesisId:'M1',location:'features/boards/hooks/useBoardsController.ts:handleDrop',message:'Drop event',data:{dealId8:(dealId||'').slice(0,8)||null,isTempDealId:!!dealId&&dealId.startsWith('temp-'),targetStageId8:(stageId||'').slice(0,8)||null,dealsCount:deals.length,hasActiveBoard:!!activeBoard},timestamp:Date.now()})}).catch(()=>{});
+    }
+    // #endregion
     if (dealId && activeBoard) {
-      const deal = deals.find(d => d.id === dealId);
+      let deal = deals.find(d => d.id === dealId);
+      // If the optimistic temp deal ID was replaced by a refetch during drag, try resolving by title.
+      if (!deal && dealTitle) {
+        const candidates = deals.filter(d => (d.title || '') === dealTitle);
+        if (candidates.length === 1) {
+          deal = candidates[0];
+          // #region agent log
+          if (process.env.NODE_ENV !== 'production') {
+            fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'deal-move-first-time',hypothesisId:'M2',location:'features/boards/hooks/useBoardsController.ts:handleDrop',message:'Resolved dropped deal by title fallback',data:{fromId8:(dealId||'').slice(0,8)||null,toId8:(deal.id||'').slice(0,8)||null,candidates:candidates.length},timestamp:Date.now()})}).catch(()=>{});
+          }
+          // #endregion
+        } else {
+          // #region agent log
+          if (process.env.NODE_ENV !== 'production') {
+            fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'deal-move-first-time',hypothesisId:'M2',location:'features/boards/hooks/useBoardsController.ts:handleDrop',message:'Title fallback did not resolve uniquely',data:{fromId8:(dealId||'').slice(0,8)||null,candidates:candidates.length},timestamp:Date.now()})}).catch(()=>{});
+          }
+          // #endregion
+          if (candidates.length > 1) {
+            addToast('Não foi possível mover: existem múltiplos negócios com o mesmo título. Aguarde salvar e tente novamente.', 'info');
+          }
+        }
+      }
       if (!deal) {
+        // #region agent log
+        if (process.env.NODE_ENV !== 'production') {
+          fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'deal-move-first-time',hypothesisId:'M2',location:'features/boards/hooks/useBoardsController.ts:handleDrop',message:'Deal not found in local deals array',data:{dealId8:(dealId||'').slice(0,8)||null,dealsCount:deals.length},timestamp:Date.now()})}).catch(()=>{});
+        }
+        // #endregion
         setDraggingId(null);
         return;
       }
+
+      // Guard: never send temp-* ids to the backend. This happens when user drags immediately after creating a deal.
+      if (deal.id.startsWith('temp-')) {
+        // #region agent log
+        if (process.env.NODE_ENV !== 'production') {
+          fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'deal-move-first-time',hypothesisId:'M8',location:'features/boards/hooks/useBoardsController.ts:handleDrop',message:'Blocked move: temp deal id (not persisted yet)',data:{dealId8:deal.id.slice(0,8),toStageId8:(stageId||'').slice(0,8)||null},timestamp:Date.now()})}).catch(()=>{});
+        }
+        // #endregion
+        addToast('Aguarde o negócio salvar para mover (1s) e tente novamente.', 'info');
+        setDraggingId(null);
+        return;
+      }
+      // #region agent log
+      if (process.env.NODE_ENV !== 'production') {
+        fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'deal-move-first-time',hypothesisId:'M3',location:'features/boards/hooks/useBoardsController.ts:handleDrop',message:'Deal found, calling moveDealMutation',data:{dealId8:(deal.id||'').slice(0,8)||null,isTemp:deal.id.startsWith('temp-'),fromStageId8:(deal.status||'').slice(0,8)||null,toStageId8:(stageId||'').slice(0,8)||null},timestamp:Date.now()})}).catch(()=>{});
+      }
+      // #endregion
 
       // Find the target stage to check if it's a won/lost stage
       const targetStage = activeBoard.stages.find(s => s.id === stageId);
@@ -429,6 +560,15 @@ export const useBoardsController = () => {
 
     const deal = deals.find(d => d.id === dealId);
     if (!deal) return;
+    if (deal.id.startsWith('temp-')) {
+      // #region agent log
+      if (process.env.NODE_ENV !== 'production') {
+        fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'deal-move-first-time',hypothesisId:'M8',location:'features/boards/hooks/useBoardsController.ts:handleMoveDealToStage',message:'Blocked keyboard move: temp deal id (not persisted yet)',data:{dealId8:deal.id.slice(0,8),toStageId8:(newStageId||'').slice(0,8)||null},timestamp:Date.now()})}).catch(()=>{});
+      }
+      // #endregion
+      addToast('Aguarde o negócio salvar para mover (1s) e tente novamente.', 'info');
+      return;
+    }
 
     // Find the target stage to check if it's a lost stage
     const targetStage = activeBoard.stages.find(s => s.id === newStageId);
@@ -459,6 +599,12 @@ export const useBoardsController = () => {
     type: 'CALL' | 'MEETING' | 'EMAIL',
     dealTitle: string
   ) => {
+    const t0 = Date.now();
+    // #region agent log
+    if (process.env.NODE_ENV !== 'production') {
+      fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'boards-activities-visibility-2',hypothesisId:'A8',location:'features/boards/hooks/useBoardsController.ts:handleQuickAddActivity',message:'Quick add activity clicked',data:{type,dealId8:dealId.slice(0,8)},timestamp:Date.now()})}).catch(()=>{});
+    }
+    // #endregion
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(10, 0, 0, 0);
@@ -469,18 +615,36 @@ export const useBoardsController = () => {
       EMAIL: 'Enviar Email de Follow-up',
     };
 
-    createActivityMutation.mutate({
-      activity: {
-        dealId,
-        dealTitle,
-        type,
-        title: titles[type],
-        description: 'Agendado via Acesso Rápido',
-        date: tomorrow.toISOString(),
-        completed: false,
-        user: { name: 'Eu', avatar: '' },
+    createActivityMutation.mutate(
+      {
+        activity: {
+          dealId,
+          dealTitle,
+          type,
+          title: titles[type],
+          description: 'Agendado via Acesso Rápido',
+          date: tomorrow.toISOString(),
+          completed: false,
+          user: { name: 'Eu', avatar: '' },
+        },
       },
-    });
+      {
+        onSuccess: () => {
+          // #region agent log
+          if (process.env.NODE_ENV !== 'production') {
+            fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'boards-activities-visibility-2',hypothesisId:'A9',location:'features/boards/hooks/useBoardsController.ts:handleQuickAddActivity:onSuccess',message:'Quick add activity success',data:{ms:Date.now()-t0},timestamp:Date.now()})}).catch(()=>{});
+          }
+          // #endregion
+        },
+        onError: (error: Error) => {
+          // #region agent log
+          if (process.env.NODE_ENV !== 'production') {
+            fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'boards-activities-visibility-2',hypothesisId:'A9',location:'features/boards/hooks/useBoardsController.ts:handleQuickAddActivity:onError',message:'Quick add activity error',data:{ms:Date.now()-t0,error:String(error?.message||'').split('\n')[0].slice(0,120)},timestamp:Date.now()})}).catch(()=>{});
+          }
+          // #endregion
+        },
+      }
+    );
     setOpenActivityMenuId(null);
   };
 
@@ -489,18 +653,87 @@ export const useBoardsController = () => {
     setActiveBoardId(boardId);
   };
 
+  const makeTempId = () => {
+    try {
+      if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+        return `temp-${crypto.randomUUID()}`;
+      }
+    } catch {
+      // ignore
+    }
+    return `temp-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  };
+
   const handleCreateBoard = async (boardData: Omit<Board, 'id' | 'createdAt'>, order?: number) => {
-    createBoardMutation.mutate({ board: boardData, order }, {
+    const t0 = Date.now();
+    const previousActiveBoardId = activeBoard?.id || activeBoardId || null;
+    const tempId = makeTempId();
+    // #region agent log
+    if (process.env.NODE_ENV !== 'production') {
+      fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'ux-lag-board-deal',hypothesisId:'B1',location:'features/boards/hooks/useBoardsController.ts:handleCreateBoard',message:'handleCreateBoard called',data:{boardsCount:boards.length,hasOrder:order!==undefined,isCreateBoardModalOpen,isWizardOpen},timestamp:Date.now()})}).catch(()=>{});
+    }
+    // #endregion
+    // Make the board feel instant: select the optimistic temp board immediately.
+    setActiveBoardId(tempId);
+    setBoardCreateOverlay({
+      title: 'Criando board…',
+      subtitle: boardData?.name ? `— ${boardData.name}` : undefined,
+    });
+    // #region agent log
+    if (process.env.NODE_ENV !== 'production') {
+      fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'board-create-overlay',hypothesisId:'O1',location:'features/boards/hooks/useBoardsController.ts:handleCreateBoard',message:'Opened board create overlay',data:{hasOrder:order!==undefined,hasName:!!boardData?.name},timestamp:Date.now()})}).catch(()=>{});
+    }
+    // #endregion
+    // #region agent log
+    if (process.env.NODE_ENV !== 'production') {
+      fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'board-appear-lag',hypothesisId:'B7',location:'features/boards/hooks/useBoardsController.ts:handleCreateBoard',message:'Selected temp board id immediately',data:{tempId8:tempId.slice(0,8),prevId8:(previousActiveBoardId||'').slice(0,8)||null},timestamp:Date.now()})}).catch(()=>{});
+    }
+    // #endregion
+
+    createBoardMutation.mutate({ board: boardData, order, clientTempId: tempId }, {
       onSuccess: newBoard => {
+        try {
+          sessionStorage.removeItem('createBoardDraft.v1');
+        } catch {
+          // noop
+        }
+        // #region agent log
+        if (process.env.NODE_ENV !== 'production') {
+          fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'ux-lag-board-deal',hypothesisId:'B2',location:'features/boards/hooks/useBoardsController.ts:handleCreateBoard:onSuccess',message:'handleCreateBoard success',data:{ms:Date.now()-t0,newBoardId8:(newBoard?.id||'').slice(0,8)||null},timestamp:Date.now()})}).catch(()=>{});
+        }
+        // #endregion
         if (newBoard) {
           setActiveBoardId(newBoard.id);
         }
+        setBoardCreateOverlay(null);
+        // #region agent log
+        if (process.env.NODE_ENV !== 'production') {
+          fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'board-create-overlay',hypothesisId:'O2',location:'features/boards/hooks/useBoardsController.ts:handleCreateBoard:onSuccess',message:'Closed board create overlay (success)',data:{ms:Date.now()-t0},timestamp:Date.now()})}).catch(()=>{});
+        }
+        // #endregion
         setIsCreateBoardModalOpen(false);
         setIsWizardOpen(false);
       },
       onError: (error) => {
+        // #region agent log
+        if (process.env.NODE_ENV !== 'production') {
+          fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'ux-lag-board-deal',hypothesisId:'B2',location:'features/boards/hooks/useBoardsController.ts:handleCreateBoard:onError',message:'handleCreateBoard error',data:{ms:Date.now()-t0,error:String((error as Error)?.message||'').split('\n')[0].slice(0,120)},timestamp:Date.now()})}).catch(()=>{});
+        }
+        // #endregion
         console.error('[handleCreateBoard] Error:', error);
         addToast(error.message || 'Erro ao criar board', 'error');
+        setBoardCreateOverlay(null);
+        // #region agent log
+        if (process.env.NODE_ENV !== 'production') {
+          fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'board-create-overlay',hypothesisId:'O3',location:'features/boards/hooks/useBoardsController.ts:handleCreateBoard:onError',message:'Closed board create overlay (error)',data:{ms:Date.now()-t0,error:String((error as Error)?.message||'').split('\n')[0].slice(0,120)},timestamp:Date.now()})}).catch(()=>{});
+        }
+        // #endregion
+        // Restore previous selection if create fails.
+        if (previousActiveBoardId) {
+          setActiveBoardId(previousActiveBoardId);
+        }
+        // Re-open modal so user can retry (draft is restored from sessionStorage)
+        setIsCreateBoardModalOpen(true);
       },
     });
   };
@@ -510,13 +743,25 @@ export const useBoardsController = () => {
    * Uses mutateAsync to allow sequential creation without race conditions.
    */
   const createBoardAsync = async (boardData: Omit<Board, 'id' | 'createdAt'>, order?: number) => {
+    const previousActiveBoardId = activeBoard?.id || activeBoardId || null;
     try {
-      const newBoard = await createBoardMutation.mutateAsync({ board: boardData, order });
+      // Mirror the "instant" UX of handleCreateBoard (optimistic temp selection) for async flows too.
+      const tempId = makeTempId();
+      setActiveBoardId(tempId);
+      // #region agent log
+      if (process.env.NODE_ENV !== 'production') {
+        fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'board-single-install',hypothesisId:'S1',location:'features/boards/hooks/useBoardsController.ts:createBoardAsync',message:'createBoardAsync selected temp board',data:{tempId8:tempId.slice(0,8),prevId8:(previousActiveBoardId||'').slice(0,8)||null,hasOrder:order!==undefined},timestamp:Date.now()})}).catch(()=>{});
+      }
+      // #endregion
+      const newBoard = await createBoardMutation.mutateAsync({ board: boardData, order, clientTempId: tempId });
+      setActiveBoardId(newBoard.id);
       return newBoard;
     } catch (error) {
       const err = error as Error;
       console.error('[createBoardAsync] Error:', err);
       addToast(err.message || 'Erro ao criar board', 'error');
+      // If we failed after selecting a temp board, try to restore selection.
+      if (previousActiveBoardId) setActiveBoardId(previousActiveBoardId);
       throw err;
     }
   };
@@ -675,7 +920,8 @@ export const useBoardsController = () => {
     boardsLoading, // Specific loading state for boards
     boardsFetched, // True after first successful fetch
     activeBoard,
-    activeBoardId: effectiveActiveBoardId, // Sempre retorna o ID válido
+    activeBoardId, // Persisted selection (best for perf-first refresh)
+    effectiveActiveBoardId, // Actually resolved board id (null until boards arrive)
     handleSelectBoard,
     handleCreateBoard,
     createBoardAsync,
@@ -726,6 +972,8 @@ export const useBoardsController = () => {
     lossReasonModal,
     handleLossReasonConfirm,
     handleLossReasonClose,
+    // UX: global overlay while creating board (start-from-zero flow)
+    boardCreateOverlay,
   };
 };
 

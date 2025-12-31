@@ -52,6 +52,12 @@ export const useMoveDeal = () => {
 
   return useMutation<MoveDealResult, Error, MoveDealParams, MoveDealContext>({
     mutationFn: async ({ dealId, targetStageId, lossReason, deal, board, lifecycleStages, explicitWin, explicitLost }) => {
+      const t0 = Date.now();
+      // #region agent log
+      if (process.env.NODE_ENV !== 'production') {
+        fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'deal-move-first-time',hypothesisId:'M4',location:'lib/query/hooks/useMoveDeal.ts:mutationFn',message:'useMoveDeal mutationFn start',data:{dealId8:(dealId||'').slice(0,8)||null,isTempDealId:!!dealId&&dealId.startsWith('temp-'),targetStageId8:(targetStageId||'').slice(0,8)||null,boardId8:(board?.id||'').slice(0,8)||null,dealStatus8:((deal as any)?.status||'').slice(0,8)||null},timestamp:Date.now()})}).catch(()=>{});
+      }
+      // #endregion
       const targetStage = board.stages.find(s => s.id === targetStageId);
 
       // Determine isWon/isLost based on params OR linkedLifecycleStage
@@ -106,7 +112,19 @@ export const useMoveDeal = () => {
 
       // 1. Update the deal
       const { error: dealError } = await dealsService.update(dealId, updates);
-      if (dealError) throw dealError;
+      if (dealError) {
+        // #region agent log
+        if (process.env.NODE_ENV !== 'production') {
+          fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'deal-move-first-time',hypothesisId:'M5',location:'lib/query/hooks/useMoveDeal.ts:mutationFn',message:'dealsService.update failed',data:{dealId8:(dealId||'').slice(0,8)||null,isTempDealId:!!dealId&&dealId.startsWith('temp-'),errMsg:(dealError.message||'').split('\n')[0].slice(0,120),ms:Date.now()-t0},timestamp:Date.now()})}).catch(()=>{});
+        }
+        // #endregion
+        throw dealError;
+      }
+      // #region agent log
+      if (process.env.NODE_ENV !== 'production') {
+        fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'deal-move-first-time',hypothesisId:'M6',location:'lib/query/hooks/useMoveDeal.ts:mutationFn',message:'dealsService.update ok',data:{dealId8:(dealId||'').slice(0,8)||null,ms:Date.now()-t0},timestamp:Date.now()})}).catch(()=>{});
+      }
+      // #endregion
 
       // 2. Create activity "Moveu para X" (fire and forget - don't block UI)
       const stageLabel = targetStage?.label || targetStageId;
@@ -206,6 +224,11 @@ export const useMoveDeal = () => {
 
     // Optimistic update: update UI instantly before server responds
     onMutate: async ({ dealId, targetStageId, deal, explicitWin, explicitLost, board }) => {
+      // #region agent log
+      if (process.env.NODE_ENV !== 'production') {
+        fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'deal-move-first-time',hypothesisId:'M7',location:'lib/query/hooks/useMoveDeal.ts:onMutate',message:'useMoveDeal onMutate (optimistic)',data:{dealId8:(dealId||'').slice(0,8)||null,isTempDealId:!!dealId&&dealId.startsWith('temp-'),targetStageId8:(targetStageId||'').slice(0,8)||null,fromStageId8:((deal as any)?.status||'').slice(0,8)||null,boardId8:(board?.id||'').slice(0,8)||null},timestamp:Date.now()})}).catch(()=>{});
+      }
+      // #endregion
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: queryKeys.deals.all });
 

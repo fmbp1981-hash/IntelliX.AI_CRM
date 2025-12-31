@@ -329,15 +329,15 @@ export const useContactsController = () => {
     let successCount = 0;
     let errorCount = 0;
 
-    try {
-      if (viewMode === 'companies') {
+      try {
+        if (viewMode === 'companies') {
         const result = await bulkDeleteCompaniesMutation.mutateAsync({
           ids,
           concurrency: 2,
         });
         successCount = result.successCount;
         errorCount = result.errorCount;
-      } else {
+        } else {
         const result = await bulkDeleteContactsMutation.mutateAsync({
           ids,
           forceDeleteDeals: true,

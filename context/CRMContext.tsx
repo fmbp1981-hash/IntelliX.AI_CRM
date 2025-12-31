@@ -28,7 +28,9 @@
  */
 
 import React, { createContext, useContext, useMemo, useEffect, ReactNode, useState, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
+import { queryKeys } from '@/lib/query';
 import {
   Deal,
   Activity,
@@ -194,6 +196,7 @@ const CRMContext = createContext<CRMContextType | undefined>(undefined);
 // ============================================
 
 const CRMInnerProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const queryClient = useQueryClient();
   // Use individual contexts
   const {
     rawDeals,
@@ -359,6 +362,53 @@ const CRMInnerProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     deal: Omit<Deal, 'id' | 'createdAt'>,
     relatedData?: { contact?: Partial<Contact>; companyName?: string }
   ) => {
+    const t0 = Date.now();
+    // #region agent log
+    if (process.env.NODE_ENV !== 'production') {
+      fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'ux-lag-board-deal',hypothesisId:'D1',location:'context/CRMContext.tsx:addDeal',message:'CRMContext.addDeal start',data:{hasCompanyName:!!relatedData?.companyName,hasContactName:!!relatedData?.contact?.name,boardId8:(deal.boardId||'').slice(0,8)||null},timestamp:Date.now()})}).catch(()=>{});
+    }
+    // #endregion
+
+    // Optimistic insert into the Kanban deals query so the deal appears immediately (no 2-3s "waiting for refetch").
+    const optimisticTempId = `temp-${Date.now()}`;
+    const optimisticBoardId = deal.boardId || '';
+    const optimisticStageId = deal.status || '';
+    const optimisticStageLabel =
+      activeBoard?.stages?.find((s) => s.id === optimisticStageId)?.label || 'Estágio não identificado';
+    const optimisticContactName = (relatedData?.contact?.name || 'Sem contato').trim() || 'Sem contato';
+    const optimisticContactEmail = (relatedData?.contact?.email || '').trim();
+    const optimisticCompanyName = (relatedData?.companyName || 'Sem empresa').trim() || 'Sem empresa';
+
+    if (optimisticBoardId) {
+      try {
+        const optimisticDealView: DealView = {
+          ...(deal as any),
+          id: optimisticTempId,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          contactId: deal.contactId || '',
+          contactName: optimisticContactName,
+          contactEmail: optimisticContactEmail,
+          stageLabel: optimisticStageLabel,
+          clientCompanyName: optimisticCompanyName,
+          // @deprecated
+          companyName: optimisticCompanyName,
+        };
+
+        queryClient.setQueryData<DealView[]>(
+          queryKeys.deals.list({ boardId: optimisticBoardId }),
+          (old = []) => [optimisticDealView, ...old]
+        );
+      } catch (e) {
+        // Never let optimistic cache update break deal creation.
+        // #region agent log
+        if (process.env.NODE_ENV !== 'production') {
+          fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'ux-lag-board-deal',hypothesisId:'DERR',location:'context/CRMContext.tsx:addDeal',message:'Optimistic dealsByBoard cache update failed (ignored)',data:{error:String((e as any)?.message||e).split('\n')[0].slice(0,120)},timestamp:Date.now()})}).catch(()=>{});
+        }
+        // #endregion
+      }
+    }
+
     let finalCompanyId = deal.companyId;
     let finalContactId = deal.contactId;
 
@@ -377,6 +427,11 @@ const CRMInnerProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
           finalCompanyId = newCompany.id;
         }
       }
+      // #region agent log
+      if (process.env.NODE_ENV !== 'production') {
+        fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'ux-lag-board-deal',hypothesisId:'D2',location:'context/CRMContext.tsx:addDeal',message:'CRMContext.addDeal company resolved',data:{ms:Date.now()-t0,matchedExisting:!!existingCompany},timestamp:Date.now()})}).catch(()=>{});
+      }
+      // #endregion
     } else if (!companies.find(c => c.id === deal.companyId)) {
       const newCompany = await addCompany({
         name: 'Nova Empresa (Auto)',
@@ -418,6 +473,11 @@ const CRMInnerProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
           finalContactId = newContact.id;
         }
       }
+      // #region agent log
+      if (process.env.NODE_ENV !== 'production') {
+        fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'ux-lag-board-deal',hypothesisId:'D2',location:'context/CRMContext.tsx:addDeal',message:'CRMContext.addDeal contact resolved',data:{ms:Date.now()-t0,matchedExisting:!!existingContact},timestamp:Date.now()})}).catch(()=>{});
+      }
+      // #endregion
     }
 
     const createdDeal = await addDealState({
@@ -425,6 +485,47 @@ const CRMInnerProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       companyId: finalCompanyId,
       contactId: finalContactId,
     });
+    // #region agent log
+    if (process.env.NODE_ENV !== 'production') {
+      fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'ux-lag-board-deal',hypothesisId:'D3',location:'context/CRMContext.tsx:addDeal',message:'CRMContext.addDeal deal created (addDealState finished)',data:{ms:Date.now()-t0,ok:!!createdDeal},timestamp:Date.now()})}).catch(()=>{});
+    }
+    // #endregion
+
+    // Replace/remove the optimistic deal with the real one (avoids duplicates when refetch completes).
+    if (optimisticBoardId) {
+      try {
+        if (createdDeal) {
+          const createdDealView: DealView = {
+            ...(createdDeal as any),
+            contactName: optimisticContactName,
+            contactEmail: optimisticContactEmail,
+            stageLabel: optimisticStageLabel,
+            clientCompanyName: optimisticCompanyName,
+            companyName: optimisticCompanyName,
+          };
+          queryClient.setQueryData<DealView[]>(
+            queryKeys.deals.list({ boardId: optimisticBoardId }),
+            (old = []) => {
+              const withoutTemp = old.filter((d) => d.id !== optimisticTempId);
+              const already = withoutTemp.some((d) => d.id === createdDeal.id);
+              return already ? withoutTemp : [createdDealView, ...withoutTemp];
+            }
+          );
+        } else {
+          // Failed to create: remove optimistic item
+          queryClient.setQueryData<DealView[]>(
+            queryKeys.deals.list({ boardId: optimisticBoardId }),
+            (old = []) => old.filter((d) => d.id !== optimisticTempId)
+          );
+        }
+      } catch (e) {
+        // #region agent log
+        if (process.env.NODE_ENV !== 'production') {
+          fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'ux-lag-board-deal',hypothesisId:'DERR',location:'context/CRMContext.tsx:addDeal',message:'Optimistic dealsByBoard reconcile failed (ignored)',data:{error:String((e as any)?.message||e).split('\n')[0].slice(0,120)},timestamp:Date.now()})}).catch(()=>{});
+        }
+        // #endregion
+      }
+    }
 
     if (createdDeal) {
       await addActivity({
@@ -436,8 +537,13 @@ const CRMInnerProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         user: { name: 'Eu', avatar: 'https://i.pravatar.cc/150?u=me' },
         completed: true,
       });
+      // #region agent log
+      if (process.env.NODE_ENV !== 'production') {
+        fetch('http://127.0.0.1:7242/ingest/d70f541c-09d7-4128-9745-93f15f184017',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'ux-lag-board-deal',hypothesisId:'D4',location:'context/CRMContext.tsx:addDeal',message:'CRMContext.addDeal activity created (deal created)',data:{ms:Date.now()-t0},timestamp:Date.now()})}).catch(()=>{});
+      }
+      // #endregion
     }
-  }, [companies, contacts, activeBoard, addCompany, addContact, addDealState, addActivity]);
+  }, [companies, contacts, activeBoard, addCompany, addContact, addDealState, addActivity, queryClient]);
 
   // moveDeal foi removido - use useMoveDeal de @/lib/query/hooks
   // O hook unificado trata: detecção won/lost, atividades, LinkedStage, etc.

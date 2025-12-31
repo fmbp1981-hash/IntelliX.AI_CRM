@@ -1,5 +1,15 @@
+## 31/12/2025
+
+- **Realtime (board_stages) — colunas voltam a aparecer em tempo real**: `board_stages INSERT` agora **refaz fetch quando o INSERT é único** (caso típico “outro usuário criou uma coluna”), mas mantém **invalidate-only em bursts** (criação de board inserindo várias etapas) para evitar storm.
+- **AIContext — assinatura mais correta**: `setContext` agora inclui `user.id` na assinatura, evitando “contexto de usuário” stale em login/logout.
+- **Settings (IA features) — evita requests duplicadas em StrictMode**: marca o fetch como “in-flight” antes do request e libera retry em erro.
+- **Telemetria/Debug logs — não rodam em produção**: `fetch(.../ingest/...)` agora é guardado por `NODE_ENV !== 'production'` e mensagens de erro foram truncadas/sanitizadas quando logadas.
+- **Acessibilidade (Wizard)**: overlay de instalação agora anuncia estado de carregamento (`role="status"`, `aria-live`, `aria-busy`).
+- **Temp IDs + fallback por título**: `tempId` agora reduz risco de colisão e o drop mostra toast quando o fallback por título não resolve unicamente.
+
 ## 30/12/2025
 
+- **UX: removido botão "Recarregar" redundante na página de Produtos/Serviços**: os dados já são recarregados automaticamente após criar/editar/deletar produtos, tornando o botão manual desnecessário e confuso.
 - **Correção de atualização de listas sem refresh manual (rotas protegidas)**: ajustes nos hooks de TanStack Query para evitar queries executando antes do auth estar pronto e garantir atualização imediata do cache após criar/editar/excluir contatos.
 - **Detalhes técnicos**:
   - Adicionado `enabled: !authLoading && !!user` em queries que acessam Supabase e podiam rodar “cedo demais” (ex.: paginação de contatos e queries por board), evitando cache inicial vazio/stale.
@@ -8,6 +18,29 @@
 - **UX: criação de contato fecha o modal no início da mutation**: modal agora fecha imediatamente ao clicar em “Criar”, com feedback “Criando…”/toast e rollback via TanStack Query em caso de erro.
 - **UX: criação de empresa (modal) fecha imediatamente**: ao criar empresa pela aba de empresas, fechamos o modal na ação e reabrimos em caso de erro.
 - **Performance: bulk delete de empresas**: deleção em lotes com concorrência limitada e invalidação única (inclui invalidação de contatos/deals por desvinculação de FK).
+- **Boards: reduzir “refetch storm” e acelerar aparição após criação**:
+  - **Mudança**: `useBoards` e `useDefaultBoard` agora desativam `refetchOnWindowFocus/refetchOnMount/refetchOnReconnect` para evitar múltiplos refetches redundantes durante churn de mount/focus (especialmente em dev/StrictMode).
+  - **Detalhe técnico**: mantém consistência via `invalidateQueries` nas mutations + update otimista na cache de `boards.lists()` no create.
+  - **Perf (hard refresh)**: `useDealsByBoard` passou a ser dirigido pelo `activeBoardId` persistido (em vez de esperar `activeBoard` resolver), iniciando o fetch de deals em paralelo ao fetch de boards e reduzindo o “delay” percebido após atualizar a página.
+  - **UX (hard refresh)**: removido o “flash” do empty-state (“Criar meu primeiro Board”) enquanto os boards ainda estão em boot (`boardsFetched=false`), mantendo o PageLoader até a primeira carga completar.
+  - **Realtime (INSERT burst)**: `useRealtimeSync` agora **agrupa INSERTs no mesmo tick** com `queueMicrotask` (e aplica um único `invalidateQueries` por key), evitando rajadas quando uma ação insere várias linhas (ex.: criação de board inserindo múltiplos `board_stages`).
+  - **Realtime (board_stages INSERT)**: para `board_stages` em `INSERT`, o Realtime faz **invalidate-only (sem refetch)** para evitar “request storm”; o refetch efetivo fica por conta da mutation de criação do board (`onSettled`) e/ou navegação.
+    - **Detalhe**: usa `refetchType: 'none'` para garantir que a invalidação não dispare refetch automático de queries ativas.
+  - **UX (seleção imediata)**: ao criar um board, o controller já seleciona o **temp board** (optimistic) imediatamente, e só depois troca para o ID real no `onSuccess`. Também desabilita `useDealsByBoard` quando `boardId` é `temp-*` para não fazer fetch “inútil”.
+  - **UX (sem “piscar” no create)**: removido o “full page loader” baseado em `dealsLoading` — agora o loader de tela inteira só aparece quando `boardsLoading` e ainda não há boards em cache, evitando o efeito de refresh após criar.
+  - **UX (wizard/funil)**: `BoardCreationWizard` agora mostra um **modal de progresso** (“Instalando funil… X/Y”) durante criação sequencial de boards (journeys), com feedback imediato e bloqueio de cliques enquanto instala.
+  - **UX (wizard/funil)**: overlay do progresso agora escurece/blurra mais o fundo e desativa “click-outside” durante a instalação, deixando o modal em evidência.
+  - **UX (templates individuais)**: ao selecionar um template individual, agora também aparece o overlay de progresso (“Criando board…”) até a criação terminar, evitando parecer lento/travado.
+  - **UX (templates individuais)**: removido o card “Personalizado (CUSTOM)” da lista de templates individuais (ele tinha `0` etapas e criava um board vazio). Agora “Começar do zero” é o único caminho para board em branco.
+  - **UX (Começar do zero)**: volta ao comportamento “1 clique”: fecha o wizard e abre o editor (`CreateBoardModal`) imediatamente.
+  - **Fix (delete board)**: exclusão manual de board agora limpa referências `boards.next_board_id` (handoff) antes do delete, evitando erro de FK `boards_next_board_id_fkey` quando outros boards apontavam para o board deletado.
+    - **Detalhe técnico**: `boardsService.delete` e `boardsService.deleteWithMoveDeals` também fazem best-effort para limpar `user_settings.active_board_id` se apontar para o board.
+  - **Fix (mover deal logo após criar)**: ao mover um deal recém-criado, o primeiro drag podia falhar porque o `dealId` ainda era `temp-*` e era substituído por refetch durante o drag. Agora o drag carrega também `dealTitle` e o drop resolve o ID real por fallback quando necessário.
+  - **Fix (AIContext)**: prevenido “Maximum update depth exceeded” em `/boards` com um guard no `AIContext.setContext` para só atualizar estado quando a assinatura do contexto muda (evita loop quando callers recriam objetos a cada render).
+  - **Perf (Settings/IA)**: reduzidas chamadas automáticas de IA no boot:
+    - Mantém `GET /api/settings/ai` no mount (necessário pra UI saber se IA está ativa / key configurada).
+    - `GET /api/settings/ai-features` agora é **lazy** (carrega só ao entrar em `/settings/ai` ou abrir UI global de IA).
+    - Adicionado guard para evitar requests duplicadas em dev/StrictMode.
 
 # Changelog
 
