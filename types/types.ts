@@ -115,6 +115,8 @@ export interface Organization {
   name: string;
   industry?: string;
   website?: string;
+  /** Business vertical for multi-niche verticalization. Defaults to 'generic'. */
+  businessType?: 'generic' | 'medical_clinic' | 'dental_clinic' | 'real_estate';
   deletedAt?: string;
   createdAt: string;
   updatedAt?: string;
