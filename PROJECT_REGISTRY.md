@@ -151,8 +151,8 @@ IntelliX.AI_CRM/
 | **2 — Webhook + Provider** | ✅ Completo | `agent-webhook/index.ts`, `agent-send-message/index.ts`, `lib/ai/agent-prompts.ts`, `lib/ai/agent-vertical-context.ts` |
 | **3 — Agent Engine Core** | ✅ Completo | `agent-engine/index.ts` (14-step pipeline) |
 | **4 — Agent Tools** | ✅ Completo | `lib/ai/agent-tools.ts` (12 tools: contacts, deals, activities, qualification, transfer, vertical) |
-| **5 — Frontend Chat** | ❌ Pendente | /conversas page + Realtime |
-| **6 — Config UI** | ❌ Pendente | /configuracoes/agente (6 tabs) |
+| **5 — Frontend Chat** | ✅ Completo | `ConversationsPage.tsx`, `MessageBubble.tsx`, `ConversationsList.tsx`, `ConversationChat.tsx`, `ConversationContext.tsx` |
+| **6 — Config UI** | ✅ Completo | `AgentConfigPage.tsx` (6 tabs: Connection, Behavior, Hours, Qualification, Transfer, Metrics) |
 | **7 — CRM Integrations** | ❌ Pendente | Inbox, Webhooks, AI Governance |
 | **8 — Media + Extras** | ❌ Pendente | Media handler, resumo, métricas |
 | **9 — Polish + QA** | ❌ Pendente | Testes, edge cases |
