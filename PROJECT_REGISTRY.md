@@ -1,8 +1,8 @@
 # PROJECT_REGISTRY.md — NossoCRM (IntelliX.AI_CRM)
 
 > **Documento Vivo:** Atualizado a cada modificação significativa.
-> **Última Atualização:** 24 de Fevereiro de 2026
-> **Versão do Registro:** 1.0
+> **Última Atualização:** 25 de Fevereiro de 2026 (00:15 BRT)
+> **Versão do Registro:** 1.1
 
 ---
 
@@ -45,7 +45,7 @@ Todas mutações iteram sobre mesma chave global do TanStack Query (ex: `[...que
 IntelliX.AI_CRM/
 ├── app/                    # Rotas Next.js (App Router)
 │   ├── (protected)/        #   Rotas autenticadas (dashboard, pipeline, inbox, etc.)
-│   ├── api/                #   API Routes (ai/, contacts/, deals/, vertical/, webhooks/, etc.)
+│   ├── api/                #   API Routes (ai/, contacts/, deals/, vertical/, webhooks/, properties/, dashboard/)
 │   ├── auth/               #   Callback de autenticação
 │   ├── install/            #   Wizard de instalação
 │   ├── login/              #   Tela de login
@@ -57,12 +57,13 @@ IntelliX.AI_CRM/
 │   ├── ai-hub/             #   Central de IA
 │   ├── boards/             #   Pipeline Kanban (maior módulo)
 │   ├── contacts/           #   Gestão de contatos
-│   ├── dashboard/          #   Dashboard e métricas
+│   ├── dashboard/          #   Dashboard e métricas + vertical widgets
 │   ├── deals/              #   Oportunidades
 │   ├── decisions/          #   Decision matrix
 │   ├── inbox/              #   Inbox Inteligente 2.0
 │   ├── onboarding/         #   Onboarding + VerticalSelector
 │   ├── profile/            #   Perfil do usuário
+│   ├── properties/         #   Módulo imobiliário (PropertyCard, PropertyMatchList)
 │   ├── reports/            #   Quick Reports
 │   ├── settings/           #   Configurações (AI Governance, Notificações, Sequências)
 │   └── shared/             #   Componentes compartilhados entre features
@@ -135,10 +136,10 @@ IntelliX.AI_CRM/
 | **2 — Onboarding** | ✅ Completo & Commitado | `lib/supabase/vertical-activation.ts`, `app/api/vertical/activate/route.ts`, `features/onboarding/components/VerticalSelector.tsx` |
 | **3 — Campos Custom** | ✅ Completo & Commitado | `lib/supabase/custom-fields.ts`, `hooks/useCustomFields.ts`, `features/shared/components/CustomFieldsRenderer.tsx` |
 | **4 — IA Contextual** | ✅ Completo & Commitado | `lib/ai/prompt-composer.ts`, `lib/ai/priority-score.ts`, `app/api/ai/generate/route.ts` |
-| **5 — Dashboard Widgets** | 🟡 Em progresso | `features/dashboard/components/VerticalDashboardWidgets.tsx` (não commitado) |
-| **6 — Automações** | ❌ Pendente | Edge Function + 9 pg_cron jobs |
-| **7 — Módulo Imobiliárias** | ❌ Pendente | CRUD imóveis, match, comissões |
-| **8 — Polish + QA** | ❌ Pendente | Testes, lint, typecheck, docs |
+| **5 — Dashboard Widgets** | ✅ Completo & Commitado | `lib/supabase/vertical-widgets.ts`, `app/api/dashboard/vertical-widgets/route.ts`, `features/dashboard/hooks/useVerticalWidgets.ts`, `features/dashboard/components/VerticalDashboardWidgets.tsx` |
+| **6 — Automações** | ✅ Completo & Commitado | `supabase/functions/vertical-automation/index.ts`, `20260224000003_setup_vertical_cron_jobs.sql` |
+| **7 — Módulo Imobiliárias** | ✅ Completo & Commitado | `lib/supabase/vertical-properties.ts`, `hooks/useVerticalProperties.ts`, `features/properties/components/PropertyCard.tsx`, `features/properties/components/PropertyMatchList.tsx`, `app/api/properties/route.ts` |
+| **8 — Polish + QA** | ✅ Verificado | TypeScript ✅, ESLint ✅ (0 warnings) |
 
 **Verticais suportadas:** `generic`, `medical_clinic`, `dental_clinic`, `real_estate`
 
@@ -154,6 +155,7 @@ IntelliX.AI_CRM/
 | 4 | `20260211000002_ai_governance_functions.sql` | 11/02/2026 | Functions `increment_ai_quota_usage()` + `reset_monthly_ai_quotas()` via pg_cron |
 | 5 | `20260224000001_vertical_infrastructure.sql` | 24/02/2026 | Enum `business_type_enum`, tabelas `vertical_configs`, `custom_field_values`, `vertical_properties` + RLS + índices |
 | 6 | `20260224000002_seed_vertical_configs.sql` | 24/02/2026 | Seed: 4 verticais com nomenclaturas, campos, pipelines, AI context, widgets, feature flags |
+| 7 | `20260224000003_setup_vertical_cron_jobs.sql` | 25/02/2026 | 9 pg_cron jobs para automações verticais (medical 3, dental 3, real estate 3) via pg_net → Edge Function |
 
 ---
 
@@ -171,6 +173,8 @@ IntelliX.AI_CRM/
 | `/api/activities/*` | CRUD | Atividades | CRUD de atividades |
 | `/api/boards/*` | CRUD | Pipeline | CRUD de boards e stages |
 | `/api/vertical/activate` | POST | Verticalização | Ativa vertical: seta business_type + cria pipeline |
+| `/api/dashboard/vertical-widgets` | GET | Dashboard | Dados dos widgets verticais por org |
+| `/api/properties` | GET/POST | Imobiliárias | CRUD imóveis com 8 filtros (status, tipo, valor, quartos, etc.) |
 | `/api/webhooks/*` | POST | Integrações | Endpoints inbound de webhooks |
 | `/api/public/*` | CRUD | API Pública | API pública documentada |
 
@@ -183,6 +187,9 @@ IntelliX.AI_CRM/
 | `useVerticalConfig()` | `hooks/useVerticalConfig.ts` | Config da vertical ativa (`staleTime: Infinity`) |
 | `useFeatureFlag(flag)` | `hooks/useFeatureFlag.ts` | Check booleano de feature flags por vertical |
 | `useCustomFields()` | `hooks/useCustomFields.ts` | CRUD de campos customizados EAV |
+| `useVerticalWidgets()` | `features/dashboard/hooks/useVerticalWidgets.ts` | Dados de widgets verticais (5min cache) |
+| `useProperties()` | `hooks/useVerticalProperties.ts` | CRUD imóveis com filtros |
+| `usePropertyMatches()` | `hooks/useVerticalProperties.ts` | Match de imóveis para cliente (4-factor scoring) |
 | `useAIEnabled()` | `hooks/useAIEnabled.ts` | Verifica se IA está habilitada na org |
 | `useConsent()` | `hooks/useConsent.ts` | Gerencia consentimento LGPD |
 | `useFirstVisit()` | `hooks/useFirstVisit.ts` | Detecta primeira visita do usuário |
@@ -212,14 +219,26 @@ IntelliX.AI_CRM/
 | Arquivo | Escopo | Status |
 |---|---|---|
 | `docs/PRD_COMPLEMENTAR_NossoCRM_v1.md` | 10 módulos complementares (P0-P3) | Fase 1 (P0) implementada |
-| `NossoCRM_PRD_Verticalizacao_Multi-Nicho.md` | Verticalização: 3 nichos + infraestrutura | Fases 1-4 implementadas, 5-8 pendentes |
-| `NossoCRM_PRD_NossoAgent_Followups_Nurturing.md` | Follow-ups automatizados + nurturing | ⏳ Não iniciado |
-| `NossoCRM_PRD_NossoAgent_IA_Nativo.md` | IA nativa avançada (NossoAgent) | ⏳ Não iniciado |
-| `NossoCRM_PRD_NossoAgent_KnowledgeBase_RAG.md` | Base de conhecimento + RAG | ⏳ Não iniciado |
+| `NossoCRM_PRD_Verticalizacao_Multi-Nicho.md` | Verticalização: 3 nichos + infraestrutura | ✅ Fases 1-8 completas |
+| `NossoCRM_PRD_NossoAgent_IA_Nativo.md` | IA nativa avançada (NossoAgent) — 9 fases, ~11.5 semanas | 🟡 Próximo: implementação |
+| `NossoCRM_PRD_NossoAgent_Followups_Nurturing.md` | Follow-ups automatizados + nurturing — 7 fases, ~9.5 semanas | ⏳ Após NossoAgent Fases 1-3 |
+| `NossoCRM_PRD_NossoAgent_KnowledgeBase_RAG.md` | Knowledge Base + RAG + Catálogo — 6 fases, ~7.5 semanas | ⏳ Após NossoAgent Fases 1-3 |
 
 ---
 
 ## 10. Histórico de Alterações (Changelog)
+
+### 25/02/2026 — Verticalização Multi-Nicho Fases 5-8
+- **Branch:** `feature/verticalizacao-multi-nicho`
+- **Commits:** `4f02069` (Fase 5), `2216163` (Fase 6), `d2d8e19` (Fase 7), `15c7165` (PRD docs)
+- **O que mudou:**
+  - **Fase 5:** Dashboard widgets — 18 fetcher KPIs por vertical, API route, hook, integração no Dashboard
+  - **Fase 6:** Automations — Edge Function com 9 jobs (medical 3, dental 3, real estate 3) + migration pg_cron
+  - **Fase 7:** Real Estate — CRUD imóveis, matching algorithm (4 fatores), 6 hooks, PropertyCard, PropertyMatchList, API com 8 filtros
+  - **Fase 8:** Verificação — TypeScript ✅, ESLint ✅
+- **Arquivos:** 13 novos, 1 modificado, ~3000 linhas
+- **Status:** Pendente push + merge
+- **Próximos passos:** Push desta branch → Criar `feature/nossoagent` → Implementar NossoAgent IA Nativo
 
 ### 24/02/2026 — Verticalização Multi-Nicho Fases 1-4
 - **Branch:** `feature/verticalizacao-multi-nicho`
@@ -255,7 +274,8 @@ IntelliX.AI_CRM/
 |---|---|---|---|
 | `main` | Produção | — | Core CRM estável |
 | `feature/prd-complementar-implementation` | Mergeada em main | `main` | PRD Complementar P0 |
-| `feature/verticalizacao-multi-nicho` | **Ativa** | `main` (pós-merge) | Verticalização — Fases 1-4 done, 5-8 pendentes |
+| `feature/verticalizacao-multi-nicho` | **Completa** (pendente merge) | `main` (pós-merge) | Verticalização — Fases 1-8 completas |
+| `feature/nossoagent` | **Próxima** | `main` (pós-merge vertical) | NossoAgent IA Nativo — implementação do PRD principal |
 
 ---
 
