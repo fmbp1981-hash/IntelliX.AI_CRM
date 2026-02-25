@@ -1,8 +1,8 @@
 # PROJECT_REGISTRY.md — NossoCRM (IntelliX.AI_CRM)
 
 > **Documento Vivo:** Atualizado a cada modificação significativa.
-> **Última Atualização:** 25 de Fevereiro de 2026 (00:15 BRT)
-> **Versão do Registro:** 1.1
+> **Última Atualização:** 25 de Fevereiro de 2026 (07:10 BRT)
+> **Versão do Registro:** 1.2
 
 ---
 
@@ -143,6 +143,20 @@ IntelliX.AI_CRM/
 
 **Verticais suportadas:** `generic`, `medical_clinic`, `dental_clinic`, `real_estate`
 
+### 4.4 NossoAgent IA Nativo (branch `feature/nossoagent`)
+
+| Fase | Status | Arquivos Principais |
+|---|---|---|
+| **1 — Infraestrutura** | ✅ Completo | `20260225000001_create_agent_tables.sql`, `types/agent.ts`, `lib/supabase/agent.ts`, `hooks/useAgentConfig.ts`, `hooks/useConversations.ts`, `hooks/useConversationRealtime.ts` |
+| **2 — Webhook + Provider** | ⏳ Próximo | Edge Functions agent-webhook e agent-send-message |
+| **3 — Agent Engine Core** | ❌ Pendente | Edge Function agent-engine |
+| **4 — Agent Tools** | ❌ Pendente | 12 tools (CRM + vertical) |
+| **5 — Frontend Chat** | ❌ Pendente | /conversas page + Realtime |
+| **6 — Config UI** | ❌ Pendente | /configuracoes/agente (6 tabs) |
+| **7 — CRM Integrations** | ❌ Pendente | Inbox, Webhooks, AI Governance |
+| **8 — Media + Extras** | ❌ Pendente | Media handler, resumo, métricas |
+| **9 — Polish + QA** | ❌ Pendente | Testes, edge cases |
+
 ---
 
 ## 5. Migrations (Histórico Cronológico)
@@ -156,6 +170,7 @@ IntelliX.AI_CRM/
 | 5 | `20260224000001_vertical_infrastructure.sql` | 24/02/2026 | Enum `business_type_enum`, tabelas `vertical_configs`, `custom_field_values`, `vertical_properties` + RLS + índices |
 | 6 | `20260224000002_seed_vertical_configs.sql` | 24/02/2026 | Seed: 4 verticais com nomenclaturas, campos, pipelines, AI context, widgets, feature flags |
 | 7 | `20260224000003_setup_vertical_cron_jobs.sql` | 25/02/2026 | 9 pg_cron jobs para automações verticais (medical 3, dental 3, real estate 3) via pg_net → Edge Function |
+| 8 | `20260225000001_create_agent_tables.sql` | 25/02/2026 | Tabelas `agent_configs`, `conversations`, `messages`, `agent_tools_log` + RLS + 8 índices + Realtime + triggers `updated_at` |
 
 ---
 
