@@ -148,9 +148,9 @@ IntelliX.AI_CRM/
 | Fase | Status | Arquivos Principais |
 |---|---|---|
 | **1 — Infraestrutura** | ✅ Completo | `20260225000001_create_agent_tables.sql`, `types/agent.ts`, `lib/supabase/agent.ts`, `hooks/useAgentConfig.ts`, `hooks/useConversations.ts`, `hooks/useConversationRealtime.ts` |
-| **2 — Webhook + Provider** | ⏳ Próximo | Edge Functions agent-webhook e agent-send-message |
-| **3 — Agent Engine Core** | ❌ Pendente | Edge Function agent-engine |
-| **4 — Agent Tools** | ❌ Pendente | 12 tools (CRM + vertical) |
+| **2 — Webhook + Provider** | ✅ Completo | `agent-webhook/index.ts`, `agent-send-message/index.ts`, `lib/ai/agent-prompts.ts`, `lib/ai/agent-vertical-context.ts` |
+| **3 — Agent Engine Core** | ✅ Completo | `agent-engine/index.ts` (14-step pipeline) |
+| **4 — Agent Tools** | ✅ Completo | `lib/ai/agent-tools.ts` (12 tools: contacts, deals, activities, qualification, transfer, vertical) |
 | **5 — Frontend Chat** | ❌ Pendente | /conversas page + Realtime |
 | **6 — Config UI** | ❌ Pendente | /configuracoes/agente (6 tabs) |
 | **7 — CRM Integrations** | ❌ Pendente | Inbox, Webhooks, AI Governance |
