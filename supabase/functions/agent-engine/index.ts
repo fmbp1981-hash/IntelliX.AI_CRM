@@ -395,20 +395,46 @@ async function checkAiQuota(
 
 async function postProcess(
     supabase: SupabaseClient,
+    config: AgentConfig,
     conversation: Conversation,
-    messageCount: number,
+    history: Message[],
     aiResponse: string
 ): Promise<void> {
-    // Update summary every 5 messages
-    if (messageCount % 5 === 0) {
-        // For now, just use the latest AI response as part of the summary
-        // In production, this would call the AI to generate a summary
-        await supabase
-            .from('conversations')
-            .update({
-                summary: `Conversa com ${messageCount} mensagens. Última resposta IA: ${aiResponse.substring(0, 200)}...`,
-            })
-            .eq('id', conversation.id);
+    const totalMessages = history.length + 1;
+    // Update summary every 5 messages to save tokens but keep context fresh
+    if (totalMessages > 0 && totalMessages % 5 === 0) {
+        try {
+            const { generateText } = await import('https://esm.sh/ai@4');
+            const { createAnthropic } = await import('https://esm.sh/@ai-sdk/anthropic@1');
+            const anthropic = createAnthropic({
+                apiKey: Deno.env.get('ANTHROPIC_API_KEY')!,
+            });
+
+            const chatText = history
+                .map(m => `${m.role === 'lead' ? 'Cliente' : 'Agente'}: ${m.content}`)
+                .join('\n') + `\nAgente: ${aiResponse}`;
+
+            const summaryPrompt = `Você é um assistente de IA focado em resumir conversas de CRM (WhatsApp).
+Resuma a conversa abaixo de forma EXTREMAMENTE CONCISA, focando no objetivo do cliente, dados importantes coletados e no ponto atual do atendimento.
+MÁXIMO 3 FRASES. Direto ao ponto.
+
+Conversa:
+${chatText}`;
+
+            const result = await generateText({
+                model: anthropic(config.ai_model || 'claude-3-haiku-20240307'),
+                prompt: summaryPrompt,
+                temperature: 0.2, // low temp for factual summary
+                maxTokens: 200,
+            });
+
+            await supabase
+                .from('conversations')
+                .update({ summary: result.text })
+                .eq('id', conversation.id);
+        } catch (err) {
+            console.error('Failed to generate summary:', err);
+        }
     }
 }
 
@@ -495,10 +521,23 @@ serve(async (req: Request) => {
             });
         }
 
+        // ── Step 4.5: Media Handler (Phase 8) ──
+        let finalMessageContent = message_content;
+
+        if (media_url) {
+            if (content_type === 'audio') {
+                finalMessageContent = `[Áudio Recebido] (Transcrição indisponível no momento). Original param: ${message_content}`;
+            } else if (content_type === 'image') {
+                finalMessageContent = `[Imagem Recebida] ${message_content !== '[mídia]' ? `Legenda: ${message_content}` : ''}`;
+            } else if (content_type === 'document' || content_type === 'video') {
+                finalMessageContent = `[${content_type === 'video' ? 'Vídeo' : 'Documento'} Recebido] ${message_content !== '[mídia]' ? `Nome/Legenda: ${message_content}` : ''}`;
+            }
+        }
+
         // ── Step 5: Save lead message ──
         await saveMessage(supabase, conversation.id, organization_id, {
             role: 'lead',
-            content: message_content,
+            content: finalMessageContent,
             content_type,
             whatsapp_message_id,
         });
@@ -591,8 +630,8 @@ serve(async (req: Request) => {
             tokens_output: result.usage?.completionTokens ?? 0,
         });
 
-        // ── Step 13: Post-processing ──
-        await postProcess(supabase, conversation, history.length, aiResponse);
+        // ── Step 13: Post-processing (Summary) ──
+        await postProcess(supabase, config, conversation, history, aiResponse);
 
         // ── Step 14: Update conversation timestamp ──
         await supabase
