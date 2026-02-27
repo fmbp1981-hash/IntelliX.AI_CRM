@@ -4,6 +4,7 @@ import { DealView, CustomFieldDefinition, BoardStage } from '@/types';
 import { ActivityStatusIcon } from './ActivityStatusIcon';
 import { getActivityStatus } from '@/features/boards/hooks/useBoardsController';
 import { MoveToStageModal } from '../Modals/MoveToStageModal';
+import { BulkActionsBar } from '../BulkActionsBar';
 
 type QuickAddType = 'CALL' | 'MEETING' | 'EMAIL';
 
@@ -18,6 +19,8 @@ type KanbanListRowProps = {
   onQuickAdd: (dealId: string, type: QuickAddType, dealTitle: string) => void;
   onCloseMenu: () => void;
   onMoveDealToStage?: (dealId: string, newStageId: string) => void;
+  isSelected: boolean;
+  onToggleSelect: (dealId: string) => void;
 };
 
 /**
@@ -35,6 +38,8 @@ const KanbanListRow = React.memo(function KanbanListRow({
   onQuickAdd,
   onCloseMenu,
   onMoveDealToStage,
+  isSelected,
+  onToggleSelect,
 }: KanbanListRowProps) {
   const [moveToStageOpen, setMoveToStageOpen] = useState(false);
 
@@ -42,19 +47,27 @@ const KanbanListRow = React.memo(function KanbanListRow({
     <>
       <tr
         onClick={() => onSelect(deal.id)}
-        className="hover:bg-slate-50/50 dark:hover:bg-white/5 transition-colors cursor-pointer group"
+        className={`hover:bg-slate-50/50 dark:hover:bg-white/5 transition-colors cursor-pointer group ${isSelected ? 'bg-primary-50/50 dark:bg-primary-900/10' : ''}`}
       >
+        <td className="px-6 py-3" onClick={(e) => e.stopPropagation()}>
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => onToggleSelect(deal.id)}
+            className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer"
+          />
+        </td>
         <td className="px-6 py-3 text-center">
-        <ActivityStatusIcon
-          status={getActivityStatus(deal)}
-          type={deal.nextActivity?.type}
-          dealId={deal.id}
-          dealTitle={deal.title}
-          isOpen={isMenuOpen}
-          onToggle={(e) => onToggleMenu(e, deal.id)}
-          onQuickAdd={(type) => onQuickAdd(deal.id, type, deal.title)}
-          onRequestClose={onCloseMenu}
-        />
+          <ActivityStatusIcon
+            status={getActivityStatus(deal)}
+            type={deal.nextActivity?.type}
+            dealId={deal.id}
+            dealTitle={deal.title}
+            isOpen={isMenuOpen}
+            onToggle={(e) => onToggleMenu(e, deal.id)}
+            onQuickAdd={(type) => onQuickAdd(deal.id, type, deal.title)}
+            onRequestClose={onCloseMenu}
+          />
         </td>
         <td className="px-6 py-3 font-bold text-slate-900 dark:text-white">{deal.title}</td>
         <td className="px-6 py-3 text-slate-600 dark:text-slate-300">{deal.companyName}</td>
@@ -66,13 +79,12 @@ const KanbanListRow = React.memo(function KanbanListRow({
                 e.stopPropagation();
                 setMoveToStageOpen(true);
               }}
-              className={`text-xs font-bold px-2 py-1 rounded focus-visible-ring ${
-                deal.isWon
+              className={`text-xs font-bold px-2 py-1 rounded focus-visible-ring ${deal.isWon
                   ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300'
                   : deal.isLost
                     ? 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300'
                     : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-              }`}
+                }`}
               aria-label="Mover estágio"
               title="Mover estágio"
             >
@@ -80,13 +92,12 @@ const KanbanListRow = React.memo(function KanbanListRow({
             </button>
           ) : (
             <span
-              className={`text-xs font-bold px-2 py-1 rounded ${
-                deal.isWon
+              className={`text-xs font-bold px-2 py-1 rounded ${deal.isWon
                   ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300'
                   : deal.isLost
                     ? 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300'
                     : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
-              } `}
+                } `}
             >
               {stageLabel}
             </span>
@@ -183,6 +194,22 @@ export const KanbanList: React.FC<KanbanListProps> = ({
     return map;
   }, [stages]);
 
+  const [selectedDealIds, setSelectedDealIds] = useState<string[]>([]);
+
+  const handleToggleSelect = useCallback((dealId: string) => {
+    setSelectedDealIds((prev) =>
+      prev.includes(dealId) ? prev.filter((id) => id !== dealId) : [...prev, dealId]
+    );
+  }, []);
+
+  const handleSelectAll = useCallback(() => {
+    if (selectedDealIds.length === filteredDeals.length) {
+      setSelectedDealIds([]);
+    } else {
+      setSelectedDealIds(filteredDeals.map((d) => d.id));
+    }
+  }, [filteredDeals, selectedDealIds.length]);
+
   // Performance: callbacks estáveis evitam re-render de subcomponentes memoizados.
   const handleRowClick = useCallback(
     (dealId: string) => {
@@ -214,6 +241,14 @@ export const KanbanList: React.FC<KanbanListProps> = ({
         <table className="w-full text-left text-sm border-collapse">
           <thead className="bg-slate-50/80 dark:bg-white/5 border-b border-slate-200 dark:border-white/5 sticky top-0 z-10 backdrop-blur-sm">
             <tr>
+              <th className="px-6 py-3 w-10">
+                <input
+                  type="checkbox"
+                  checked={filteredDeals.length > 0 && selectedDealIds.length === filteredDeals.length}
+                  onChange={handleSelectAll}
+                  className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer"
+                />
+              </th>
               <th className="px-6 py-3 font-bold text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider w-10"></th>
               <th className="px-6 py-3 font-bold text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                 Negócio
@@ -255,11 +290,19 @@ export const KanbanList: React.FC<KanbanListProps> = ({
                 onQuickAdd={handleQuickAdd}
                 onCloseMenu={handleCloseMenu}
                 onMoveDealToStage={onMoveDealToStage}
+                isSelected={selectedDealIds.includes(deal.id)}
+                onToggleSelect={handleToggleSelect}
               />
             ))}
           </tbody>
         </table>
       </div>
+
+      <BulkActionsBar
+        selectedIds={selectedDealIds}
+        stages={stages}
+        onClearSelection={() => setSelectedDealIds([])}
+      />
     </div>
   );
 };
