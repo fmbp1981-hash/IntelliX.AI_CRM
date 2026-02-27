@@ -119,7 +119,7 @@ async function findOrCreateConversation(
         .select('*')
         .eq('organization_id', orgId)
         .eq('whatsapp_number', whatsappNumber)
-        .in('status', ['active', 'waiting_human', 'human_active'])
+        .in('status', ['active', 'waiting_human', 'human_active', 'processing_response']) // Added processing state
         .order('created_at', { ascending: false })
         .limit(1)
         .single();
@@ -468,7 +468,7 @@ serve(async (req: Request) => {
             whatsapp_name
         );
 
-        // ── Step 2: If human is active, just save message (human sees via Realtime) ──
+        // ── Step 2: Concurrency & Status Checks ──
         if (conversation.status === 'human_active') {
             await saveMessage(supabase, conversation.id, organization_id, {
                 role: 'lead',
@@ -480,6 +480,19 @@ serve(async (req: Request) => {
                 headers: { 'Content-Type': 'application/json' },
             });
         }
+
+        if (conversation.status === 'processing_response') {
+            console.log('Skipping message - AI is currently processing a response for this conversation');
+            return new Response(JSON.stringify({ status: 'ignored_double_request' }), {
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        // Lock conversation immediately
+        await supabase
+            .from('conversations')
+            .update({ status: 'processing_response' })
+            .eq('id', conversation.id);
 
         // ── Step 3: Get agent config ──
         const { data: agentConfig } = await supabase
@@ -517,6 +530,25 @@ serve(async (req: Request) => {
             }
 
             return new Response(JSON.stringify({ status: 'outside_hours' }), {
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        // ── Step 4.2: basic prompt injection guard ──
+        const lowerMsg = message_content.toLowerCase();
+        if (lowerMsg.includes('ignore the previous instructions') ||
+            lowerMsg.includes('ignore as instruções anteriores') ||
+            lowerMsg.includes('você é agora um') ||
+            lowerMsg.includes('you are now a')) {
+
+            await saveMessage(supabase, conversation.id, organization_id, {
+                role: 'system',
+                content: 'Prompt injection attempt blocked.',
+            });
+
+            // unlock and abort
+            await supabase.from('conversations').update({ status: 'active' }).eq('id', conversation.id);
+            return new Response(JSON.stringify({ status: 'blocked_injection' }), {
                 headers: { 'Content-Type': 'application/json' },
             });
         }
@@ -633,10 +665,11 @@ serve(async (req: Request) => {
         // ── Step 13: Post-processing (Summary) ──
         await postProcess(supabase, config, conversation, history, aiResponse);
 
-        // ── Step 14: Update conversation timestamp ──
+        // ── Step 14: Update conversation timestamp and unlock ──
         await supabase
             .from('conversations')
             .update({
+                status: 'active', // Unlock
                 last_ai_response_at: new Date().toISOString(),
                 ...(isFirstMessage
                     ? {
