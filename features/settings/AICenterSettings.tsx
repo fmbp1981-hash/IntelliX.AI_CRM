@@ -5,6 +5,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useCRM } from '@/context/CRMContext';
 import { AIConfigSection } from './components/AIConfigSection';
 import { AIFeaturesSection } from './components/AIFeaturesSection';
+import { AIGovernanceDashboard } from './components/AIGovernanceDashboard';
+import { AIQuotaSettings } from './components/AIQuotaSettings';
 
 /**
  * Componente React `AICenterSettings`.
@@ -61,6 +63,18 @@ export const AICenterSettings: React.FC = () => {
       <div className="mt-6">
         <AIFeaturesSection />
       </div>
+
+      {/* Governança de IA — Dashboard de uso e quota */}
+      <div className="mt-8">
+        <AIGovernanceDashboard />
+      </div>
+
+      {/* Configuração de Quota — Admin only */}
+      {isAdmin && (
+        <div className="mt-6">
+          <AIQuotaSettings />
+        </div>
+      )}
     </div>
   );
 };

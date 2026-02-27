@@ -2,13 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCRM } from '@/context/CRMContext';
 import { useToast } from '@/context/ToastContext';
+import { useAuth } from '@/context/AuthContext';
 import { TrendingUp, TrendingDown, Users, DollarSign, Target, Clock, MoreVertical, AlertTriangle } from 'lucide-react';
 import { StatCard } from './components/StatCard';
 import { ActivityFeedItem } from './components/ActivityFeedItem';
 import { PipelineAlertsModal } from './components/PipelineAlertsModal';
+import { VerticalDashboardWidgets } from './components/VerticalDashboardWidgets';
 import { useDashboardMetrics, PeriodFilter, COMPARISON_LABELS } from './hooks/useDashboardMetrics';
+import { useVerticalWidgets } from './hooks/useVerticalWidgets';
+import { useVerticalConfig } from '@/hooks/useVerticalConfig';
 import { PeriodFilterSelect } from '@/components/filters/PeriodFilterSelect';
 import { LazyFunnelChart, ChartWrapper } from '@/components/charts';
+import type { BusinessType } from '@/types/vertical';
 
 
 /**
@@ -31,9 +36,30 @@ const DashboardPage: React.FC = () => {
   const router = useRouter();
   const { activities, lifecycleStages, contacts, boards } = useCRM();
   const { addToast } = useToast();
+  const { organizationId } = useAuth();
   const [period, setPeriod] = useState<PeriodFilter>('this_month');
   const [showPipelineAlerts, setShowPipelineAlerts] = useState(false);
   const [selectedBoardId, setSelectedBoardId] = useState<string>('');
+  const [businessType, setBusinessType] = useState<BusinessType | undefined>();
+
+  // Fetch business_type from organization
+  useEffect(() => {
+    if (!organizationId) return;
+    import('@/lib/supabase/client').then(({ createBrowserClient }) => {
+      const supabase = createBrowserClient();
+      supabase
+        .from('organizations')
+        .select('business_type')
+        .eq('id', organizationId)
+        .single()
+        .then(({ data }) => {
+          if (data?.business_type) setBusinessType(data.business_type as BusinessType);
+        });
+    });
+  }, [organizationId]);
+
+  const { data: verticalConfig } = useVerticalConfig(businessType);
+  const { data: widgetData } = useVerticalWidgets({ businessType, config: verticalConfig });
 
   // Inicializar board selecionado
   useEffect(() => {
@@ -272,6 +298,13 @@ const DashboardPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Vertical Dashboard Widgets */}
+      {verticalConfig && verticalConfig.business_type !== 'generic' && (
+        <div className="shrink-0">
+          <VerticalDashboardWidgets config={verticalConfig} widgetData={widgetData} />
+        </div>
+      )}
 
       {/* Auto-Resize Bottom Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-[300px]">

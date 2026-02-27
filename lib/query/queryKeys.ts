@@ -43,6 +43,45 @@ export const queryKeys = {
         funnel: ['dashboard', 'funnel'] as const,
         timeline: ['dashboard', 'timeline'] as const,
     },
+
+    // =============================================
+    // COMPLEMENTARY FEATURES (PRD Complementar v1)
+    // =============================================
+
+    // AI Governance
+    aiUsage: createExtendedQueryKeys('aiUsage', base => ({
+        stats: (period: 'day' | 'week' | 'month') => [...base.all, 'stats', period] as const,
+        byProvider: () => [...base.all, 'byProvider'] as const,
+    })),
+    aiQuotas: createQueryKeys('aiQuotas'),
+
+    // Notification Preferences
+    notificationPreferences: createQueryKeys('notificationPreferences'),
+
+    // Deal Templates
+    dealTemplates: createExtendedQueryKeys('dealTemplates', base => ({
+        byBoard: (boardId: string) => [...base.all, 'board', boardId] as const,
+        active: () => [...base.all, 'active'] as const,
+    })),
+
+    // Activity Sequences
+    activitySequences: createExtendedQueryKeys('activitySequences', base => ({
+        byStage: (stageId: string) => [...base.all, 'stage', stageId] as const,
+        active: () => [...base.all, 'active'] as const,
+    })),
+
+    // Inbox Action Items
+    inboxItems: createExtendedQueryKeys('inboxItems', base => ({
+        pending: () => [...base.all, 'pending'] as const,
+        today: () => [...base.all, 'today'] as const,
+        byDeal: (dealId: string) => [...base.all, 'deal', dealId] as const,
+    })),
+
+    // Deal Sequence Enrollments
+    dealEnrollments: createExtendedQueryKeys('dealEnrollments', base => ({
+        byDeal: (dealId: string) => [...base.all, 'deal', dealId] as const,
+        active: () => [...base.all, 'active'] as const,
+    })),
 };
 
 /**

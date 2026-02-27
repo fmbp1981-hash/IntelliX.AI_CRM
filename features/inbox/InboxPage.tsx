@@ -5,6 +5,7 @@ import { ViewModeToggle } from './components/ViewModeToggle';
 import { InboxOverviewView } from './components/InboxOverviewView';
 import { InboxListView } from './components/InboxListView';
 import { InboxFocusView } from './components/InboxFocusView';
+import { ActionItemsList } from './components/ActionItemsList';
 import { DebugFillButton } from '@/components/debug/DebugFillButton';
 
 /**
@@ -78,6 +79,14 @@ export const InboxPage: React.FC = () => {
 
         <ViewModeToggle mode={viewMode} onChange={setViewMode} />
       </div>
+
+      {/* Ações Inteligentes (Inbox 2.0) */}
+      <div className="mb-8">
+        <ActionItemsList />
+      </div>
+
+      {/* Separator */}
+      <div className="border-t border-slate-200 dark:border-white/10 mb-8" />
 
       {/* Views */}
       {viewMode === 'overview' ? (

@@ -20,6 +20,7 @@ import { isAllowedOrigin } from '@/lib/security/sameOrigin';
 import { getResolvedPrompt } from '@/lib/ai/prompts/server';
 import { renderPromptTemplate } from '@/lib/ai/prompts/render';
 import { isAIFeatureEnabled } from '@/lib/ai/features/server';
+import { checkQuota, logAIUsage, estimateCost } from '@/lib/supabase/ai-governance';
 
 export const maxDuration = 60;
 
@@ -227,6 +228,14 @@ export async function POST(req: Request) {
   const modelId = orgSettings.ai_model || '';
   const model = getModel(provider, apiKey, modelId);
 
+  // ── AI Governance: Quota Check ──
+  const quotaCheck = await checkQuota(supabase, profile.organization_id);
+  if (!quotaCheck.allowed) {
+    return json<AIActionResponse>({ error: quotaCheck.reason || 'AI quota exceeded' }, 429);
+  }
+
+  const _govStartTime = Date.now();
+
   try {
     switch (action) {
       case 'analyzeLead': {
@@ -338,12 +347,12 @@ Responda em português do Brasil.`,
           Array.isArray(lifecycleStages) && lifecycleStages.length > 0
             ? lifecycleStages.map((s: any) => ({ id: s?.id || '', name: s?.name || String(s) }))
             : [
-                { id: 'LEAD', name: 'Lead' },
-                { id: 'MQL', name: 'MQL' },
-                { id: 'PROSPECT', name: 'Oportunidade' },
-                { id: 'CUSTOMER', name: 'Cliente' },
-                { id: 'OTHER', name: 'Outros' },
-              ];
+              { id: 'LEAD', name: 'Lead' },
+              { id: 'MQL', name: 'MQL' },
+              { id: 'PROSPECT', name: 'Oportunidade' },
+              { id: 'CUSTOMER', name: 'Cliente' },
+              { id: 'OTHER', name: 'Outros' },
+            ];
 
         const resolved = await getResolvedPrompt(supabase as any, profile.organization_id as any, 'task_boards_generate_structure');
         const prompt = renderPromptTemplate(resolved?.content || '', {
@@ -491,7 +500,41 @@ Responda em português.`,
         return json<AIActionResponse>({ error: `Unknown action: ${exhaustive}` }, 200);
       }
     }
+
+    // ── AI Governance: Log successful usage (fire-and-forget) ──
+    const _govDuration = Date.now() - _govStartTime;
+    const _estInput = Math.ceil(JSON.stringify(data).length / 4) + 200;
+    const _estOutput = 150;
+    logAIUsage(supabase, {
+      organization_id: profile!.organization_id,
+      user_id: user!.id,
+      action: action!,
+      provider: provider as string,
+      model: modelId as string,
+      input_tokens: _estInput,
+      output_tokens: _estOutput,
+      total_tokens: _estInput + _estOutput,
+      estimated_cost_usd: estimateCost(modelId, _estInput, _estOutput),
+      duration_ms: _govDuration,
+      success: true,
+    }).catch(() => { });
   } catch (err: any) {
+    // ── AI Governance: Log failed usage ──
+    logAIUsage(supabase, {
+      organization_id: profile!.organization_id,
+      user_id: user!.id,
+      action: action!,
+      provider: provider as string,
+      model: modelId as string,
+      input_tokens: 0,
+      output_tokens: 0,
+      total_tokens: 0,
+      estimated_cost_usd: 0,
+      duration_ms: Date.now() - _govStartTime,
+      success: false,
+      error_message: (err?.message || 'Unknown error').slice(0, 500),
+    }).catch(() => { });
+
     console.error('[api/ai/actions] Error:', err);
     return json<AIActionResponse>({ error: err?.message || 'Internal Server Error' }, 200);
   }

@@ -28,3 +28,19 @@
 - Imports: use `@/` alias (e.g., `@/lib/utils`, `@/components/ui`)
 - Naming: camelCase for variables/functions, PascalCase for components/types
 - Tests: Vitest + happy-dom + React Testing Library; place `.test.ts(x)` files alongside source
+
+## ⚡ n8n Automation & Skills
+You have access to **n8n-mcp** and **n8n-skills** to build and manage workflows.
+
+### Available Skills
+Reference these skills in `n8n-skills/skills/` when performing n8n tasks:
+1. **n8n-mcp-tools-expert**: `n8n-skills/skills/n8n-mcp-tools-expert/SKILL.md` (Use for ALL n8n tool interactions)
+2. **Workflow Patterns**: `n8n-skills/skills/n8n-workflow-patterns/SKILL.md` (Use when designing new workflows)
+3. **Expression Syntax**: `n8n-skills/skills/n8n-expression-syntax/SKILL.md` (Use when writing n8n expressions)
+4. **Node Configuration**: `n8n-skills/skills/n8n-node-configuration/SKILL.md` (Use when configuring complex nodes)
+
+### Workflow Development Process
+1. **Always** read `n8n-mcp-tools-expert` skill first.
+2. **Search Templates**: Use `search_templates` before building from scratch.
+3. **Validate**: Use `validate_node` and `validate_workflow` at every step.
+4. **Attribution**: When using templates, attribute the author.
