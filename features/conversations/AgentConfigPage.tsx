@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useAgentConfig } from '@/hooks/useAgentConfig';
+import { useAgentConfig, useUpdateAgentConfig } from '@/hooks/useAgentConfig';
+import { AgentMetricsTab } from './components/AgentMetricsTab';
 
 type TabId = 'connection' | 'behavior' | 'hours' | 'qualification' | 'transfer' | 'metrics';
 
@@ -25,7 +26,8 @@ const DAYS = [
 ];
 
 export const AgentConfigPage: React.FC = () => {
-    const { data: config, updateConfig } = useAgentConfig();
+    const { data: config } = useAgentConfig();
+    const updateConfig = useUpdateAgentConfig();
     const [activeTab, setActiveTab] = useState<TabId>('connection');
     const [draft, setDraft] = useState<Record<string, any>>({});
     const [saving, setSaving] = useState(false);
@@ -94,8 +96,8 @@ export const AgentConfigPage: React.FC = () => {
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
                         className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 ${activeTab === tab.id
-                                ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
-                                : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                            ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
+                            : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                             }`}
                     >
                         <span className="mr-1.5">{tab.icon}</span>
@@ -456,15 +458,8 @@ export const AgentConfigPage: React.FC = () => {
                 )}
 
                 {activeTab === 'metrics' && (
-                    <div className="text-center py-12">
-                        <span className="text-4xl mb-4 block">📊</span>
-                        <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                            Métricas em breve
-                        </h3>
-                        <p className="text-sm text-slate-400 max-w-md mx-auto">
-                            Aqui você verá: total de conversas, tempo médio de resposta, taxa de qualificação,
-                            transferências, e satisfaction score.
-                        </p>
+                    <div className="py-2">
+                        <AgentMetricsTab />
                     </div>
                 )}
             </div>

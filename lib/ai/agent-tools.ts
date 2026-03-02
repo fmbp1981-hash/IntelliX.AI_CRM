@@ -364,7 +364,7 @@ export function buildAgentTools(ctx: ToolContext) {
                 qualified: z.boolean().describe('true = qualificado, false = não qualificado'),
                 score: z.number().min(0).max(100).describe('Score 0-100'),
                 reason: z.string().describe('Justificativa'),
-                collected_data: z.record(z.any()).describe('Dados coletados na qualificação'),
+                collected_data: z.record(z.string(), z.any()).describe('Dados coletados na qualificação'),
             }),
             execute: async (params: {
                 qualified: boolean;
@@ -388,10 +388,11 @@ export function buildAgentTools(ctx: ToolContext) {
                     await ctx.supabase.from('inbox_action_items').insert({
                         organization_id: ctx.organizationId,
                         type: params.qualified ? 'follow_up' : 'review',
-                        priority: params.qualified ? 'high' : 'medium',
-                        title: `Lead ${params.qualified ? 'qualificado' : 'desqualificado'}: ${params.reason}`,
-                        description: JSON.stringify(params.collected_data),
+                        priority: params.qualified ? 'high' : 'low',
+                        title: `Lead ${params.qualified ? 'qualificado' : 'desqualificado'}`,
+                        description: `Motivo: ${params.reason}`,
                         status: 'pending',
+                        metadata: params.collected_data
                     });
 
                     await logToolExecution(ctx, 'qualify_lead', params, { qualified: params.qualified }, true);
@@ -451,10 +452,11 @@ export function buildAgentTools(ctx: ToolContext) {
                     await ctx.supabase.from('inbox_action_items').insert({
                         organization_id: ctx.organizationId,
                         type: 'transfer',
-                        priority: params.priority,
-                        title: `Transferência: ${params.reason}`,
-                        description: params.summary,
+                        priority: 'critical', // As per PRD, transfer is always critical
+                        title: `Transferência Solicitada`,
+                        description: `Motivo: ${params.reason}\n\nResumo: ${params.summary}`,
                         status: 'pending',
+                        assigned_to: params.transfer_to ?? null,
                     });
 
                     await logToolExecution(ctx, 'transfer_to_human', params, { transferred: true }, true);
@@ -546,7 +548,7 @@ export function buildAgentTools(ctx: ToolContext) {
                 const bookedSlots = (existingDeals ?? []).length;
                 const available = bookedSlots < 10;
 
-                const slots = [];
+                const slots: string[] = [];
                 const morningSlots = ['08:00', '09:00', '10:00', '11:00'];
                 const afternoonSlots = ['14:00', '15:00', '16:00', '17:00'];
 

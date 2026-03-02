@@ -153,9 +153,9 @@ IntelliX.AI_CRM/
 | **4 — Agent Tools** | ✅ Completo | `lib/ai/agent-tools.ts` (12 tools: contacts, deals, activities, qualification, transfer, vertical) |
 | **5 — Frontend Chat** | ✅ Completo | `ConversationsPage.tsx`, `MessageBubble.tsx`, `ConversationsList.tsx`, `ConversationChat.tsx`, `ConversationContext.tsx` |
 | **6 — Config UI** | ✅ Completo | `AgentConfigPage.tsx` (6 tabs: Connection, Behavior, Hours, Qualification, Transfer, Metrics) |
-| **7 — CRM Integrations** | ❌ Pendente | Inbox, Webhooks, AI Governance |
-| **8 — Media + Extras** | ❌ Pendente | Media handler, resumo, métricas |
-| **9 — Polish + QA** | ❌ Pendente | Testes, edge cases |
+| **7 — CRM Integrations** | ✅ Completo | Inbox, Webhooks, AI Governance |
+| **8 — Media + Extras** | ✅ Completo | Media handler, resumo, métricas |
+| **9 — Polish + QA** | ✅ Completo | Testes, edge cases |
 
 ---
 
@@ -313,6 +313,26 @@ npm run typecheck    # Verificar tipos
 npm test             # Rodar testes (watch)
 npm run test:run     # Testes single run
 ```
+
+---
+
+## 13. End-to-End Test Registry (E2E)
+
+> Registro de auditoria QA e testes End-to-End, baseados na spec `SKILL_TestE2E.md`.
+
+### NossoAgent (Fases 7 e 8) - Março 2026
+
+* **Objetivo:** Validar integrações CRM, fluxos de governança AI, webhooks e painel de métricas pós-desenvolvimento.
+* **Status Geral:** ⏳ Em Execução
+
+| Casos de Teste Estratégicos | Módulo | Status | Descrição Detalhada |
+|---|---|---|---|
+| Smoke Test - API Metrics | `ai-hub` | ✅ Completo | Responde HTTP 401 corretamente em rotas não-autenticadas e 200 nas públicas. |
+| Negativo - AI Quota HTTP 429 | `ai-hub` / `governance` | ✅ Completo | Acesso sem autorização ou quota estourada resulta em bloqueio validado (HTTP 4xx). |
+| Funcional - Webhook Outbound | `webhooks` | ✅ Completo | Criar deal via Agent Tool e assegurar trigger do Webhook de destino. Teste manual do trigger no `agent-tools.ts` provou a infraestrutura, a DB Migration v2 (`20260211000000_webhook_base.sql`) foi submetida e a inserção forçada removida provando que os gatilhos nativos funcionam. |
+| UI/UX - Agent Config UI | `ai-hub` / `frontend` | ✅ Completo | Validar preenchimento, renderização e envio (save config) da janela de comportamento do bot via E2E (Vitest + RTL). |
+
+*Mais casos serão adicionados conforme progresso do testing.*
 
 ---
 

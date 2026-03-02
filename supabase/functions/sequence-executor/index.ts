@@ -104,7 +104,7 @@ serve(async (req: Request) => {
 
         // 3. Advance logic
         const nextStepIndex = currentStepIndex + 1
-        let payload: any = { current_step: nextStepIndex }
+        const payload: any = { current_step: nextStepIndex }
 
         if (nextStepIndex >= sequence.steps.length) {
           // Sequence complete

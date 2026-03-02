@@ -16,12 +16,12 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createSupabaseServer } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { composePrompt } from '@/lib/ai/prompt-composer';
 
 export async function POST(req: NextRequest) {
     try {
-        const supabase = await createSupabaseServer();
+        const supabase = await createClient();
 
         // Auth
         const {

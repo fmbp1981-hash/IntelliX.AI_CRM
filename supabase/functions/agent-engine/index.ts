@@ -7,6 +7,7 @@ import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')!;
 
 // ============================================
 // Types
@@ -141,6 +142,17 @@ async function findOrCreateConversation(
         .single();
 
     if (error) throw new Error(`Failed to create conversation: ${error.message}`);
+
+    // Create Action Item for the new lead
+    await supabase.from('inbox_action_items').insert({
+        organization_id: orgId,
+        type: 'follow_up',
+        priority: 'medium',
+        title: `Novo Lead via WhatsApp`,
+        description: `Nome: ${whatsappName || whatsappNumber}\nTelefone: ${whatsappNumber}`,
+        status: 'pending',
+    });
+
     return created as Conversation;
 }
 
@@ -221,7 +233,8 @@ async function composeSystemPrompt(
     supabase: SupabaseClient,
     orgId: string,
     config: AgentConfig,
-    conversation: Conversation
+    conversation: Conversation,
+    knowledgeContext: string | null
 ): Promise<string> {
     const parts: string[] = [];
 
@@ -260,6 +273,11 @@ async function composeSystemPrompt(
     // 3. Agent-specific override
     if (config.system_prompt_override) {
         parts.push(`\n## INSTRUÇÕES ESPECÍFICAS DA EMPRESA\n${config.system_prompt_override}`);
+    }
+
+    // 3.5. Knowledge Base (RAG)
+    if (knowledgeContext) {
+        parts.push(`\n## BASE DE CONHECIMENTO\nUse as informações abaixo para responder (se relevante):\n${knowledgeContext}`);
     }
 
     // 4. Qualification context
@@ -307,6 +325,44 @@ async function composeSystemPrompt(
     }
 
     return parts.join('\n');
+}
+
+// ============================================
+// Helper: Get Knowledge Base Context (RAG)
+// ============================================
+
+async function getKnowledgeContext(
+    supabase: SupabaseClient,
+    orgId: string,
+    messageContent: string
+): Promise<string | null> {
+    try {
+        const { OpenAI } = await import('https://esm.sh/openai@4');
+        const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
+
+        const embeddingRes = await openai.embeddings.create({
+            model: "text-embedding-3-small",
+            input: messageContent,
+            dimensions: 1536,
+        });
+
+        const query_embedding = embeddingRes.data[0].embedding;
+
+        // Use RPC 'match_documents'
+        const { data: documents, error } = await supabase.rpc('match_documents', {
+            query_embedding,
+            match_threshold: 0.7, // Only reasonably relevant docs
+            match_count: 3,
+            p_organization_id: orgId
+        });
+
+        if (error || !documents || documents.length === 0) return null;
+
+        return documents.map((d: any) => `[ID: ${d.id}]\nTítulo: ${d.title}\nConteúdo: ${d.content}`).join('\n\n');
+    } catch (err) {
+        console.error('RAG Error:', err);
+        return null;
+    }
 }
 
 // ============================================
@@ -558,11 +614,32 @@ serve(async (req: Request) => {
 
         if (media_url) {
             if (content_type === 'audio') {
-                finalMessageContent = `[Áudio Recebido] (Transcrição indisponível no momento). Original param: ${message_content}`;
+                try {
+                    const { OpenAI } = await import('https://esm.sh/openai@4');
+                    const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
+
+                    // Fetch audio from URL into a blob to send to OpenAI
+                    const audioRes = await fetch(media_url);
+                    if (audioRes.ok) {
+                        const audioBlob = await audioRes.blob();
+                        const audioFile = new File([audioBlob], 'audio.ogg', { type: audioBlob.type || 'audio/ogg' });
+
+                        const transcription = await openai.audio.transcriptions.create({
+                            file: audioFile,
+                            model: "whisper-1",
+                        });
+                        finalMessageContent = `[Áudio Transcrito Recebido]: "${transcription.text}"`;
+                    } else {
+                        finalMessageContent = `[Áudio Recebido] (Não foi possível baixar o áudio).`;
+                    }
+                } catch (e) {
+                    console.error('Whisper transcription error:', e);
+                    finalMessageContent = `[Áudio Recebido] (Erro na transcrição).`;
+                }
             } else if (content_type === 'image') {
-                finalMessageContent = `[Imagem Recebida] ${message_content !== '[mídia]' ? `Legenda: ${message_content}` : ''}`;
+                finalMessageContent = `[Imagem Recebida] URL: ${media_url} - ${message_content !== '[mídia]' ? `Legenda: ${message_content}` : ''}`;
             } else if (content_type === 'document' || content_type === 'video') {
-                finalMessageContent = `[${content_type === 'video' ? 'Vídeo' : 'Documento'} Recebido] ${message_content !== '[mídia]' ? `Nome/Legenda: ${message_content}` : ''}`;
+                finalMessageContent = `[${content_type === 'video' ? 'Vídeo' : 'Documento'} Recebido URL: ${media_url}] ${message_content !== '[mídia]' ? `Nome/Legenda: ${message_content}` : ''}`;
             }
         }
 
@@ -588,12 +665,16 @@ serve(async (req: Request) => {
             });
         }
 
+        // ── Step 6.5: Fetch Knowledge Base (RAG) ──
+        const knowledgeContext = await getKnowledgeContext(supabase, organization_id, finalMessageContent);
+
         // ── Step 7: Compose system prompt ──
         const systemPrompt = await composeSystemPrompt(
             supabase,
             organization_id,
             config,
-            conversation
+            conversation,
+            knowledgeContext
         );
 
         // ── Step 8: Check AI quota ──
@@ -606,6 +687,17 @@ serve(async (req: Request) => {
                 role: 'system',
                 content: 'AI quota exceeded — message not processed by AI.',
             });
+
+            // Create Critical Action Item
+            await supabase.from('inbox_action_items').insert({
+                organization_id,
+                type: 'review',
+                priority: 'critical',
+                title: `Alerta: Quota de IA Excedida`,
+                description: `O NossoAgent parou de responder a ${whatsapp_name || whatsapp_number} pois o limite mensal de tokens foi atingido. Atue manualmente.`,
+                status: 'pending',
+            });
+
             return new Response(JSON.stringify({ status: 'quota_exceeded' }), {
                 headers: { 'Content-Type': 'application/json' },
             });

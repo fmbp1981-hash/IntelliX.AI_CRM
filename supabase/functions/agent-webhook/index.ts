@@ -160,28 +160,38 @@ serve(async (req: Request) => {
                 return new Response('Agent not active', { status: 200 });
             }
 
-            // Forward to agent-engine (async, don't block webhook response)
-            const enginePayload = {
+            // Forward to correct handler (async, don't block webhook response)
+            const isMedia = ['audio', 'image', 'video', 'document'].includes(normalized.type);
+            const targetFunction = isMedia ? 'agent-media-handler' : 'agent-engine';
+
+            const payload = isMedia ? {
+                organization_id: orgId,
+                whatsapp_number: normalized.from,
+                whatsapp_name: normalized.pushName,
+                media_url: normalized.mediaUrl,
+                media_type: normalized.type,
+                mime_type: 'application/octet-stream', // Can be inferred better if provided by provider
+                whatsapp_message_id: normalized.messageId
+            } : {
                 organization_id: orgId,
                 whatsapp_number: normalized.from,
                 whatsapp_name: normalized.pushName,
                 message_content: normalized.message,
                 content_type: normalized.type,
-                media_url: normalized.mediaUrl,
                 whatsapp_message_id: normalized.messageId,
                 whatsapp_timestamp: normalized.timestamp,
             };
 
-            // Fire-and-forget to agent-engine
-            fetch(`${SUPABASE_URL}/functions/v1/agent-engine`, {
+            // Fire-and-forget
+            fetch(`${SUPABASE_URL}/functions/v1/${targetFunction}`, {
                 method: 'POST',
                 headers: {
                     Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(enginePayload),
+                body: JSON.stringify(payload),
             }).catch((err) => {
-                console.error('Failed to call agent-engine:', err);
+                console.error(`Failed to call ${targetFunction}:`, err);
             });
 
             // Respond immediately to WhatsApp (they require fast 200 OK)

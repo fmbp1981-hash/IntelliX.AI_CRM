@@ -1,6 +1,7 @@
 'use client'
 
-import { createBrowserClient } from '@supabase/ssr'
+import { createBrowserClient as createSSRBrowserClient } from '@supabase/ssr'
+export const createBrowserClient = () => createClient() as SupabaseClient;
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 // Check if Supabase is properly configured
@@ -25,7 +26,7 @@ export function createClient(): SupabaseClient | null {
     }
 
     if (!_supabase) {
-        _supabase = createBrowserClient(supabaseUrl!, supabaseAnonKey!)
+        _supabase = createSSRBrowserClient(supabaseUrl!, supabaseAnonKey!)
     }
     return _supabase
 }

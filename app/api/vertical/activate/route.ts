@@ -12,7 +12,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createSupabaseServer } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { activateVertical } from '@/lib/supabase/vertical-activation';
 import type { BusinessType } from '@/types/vertical';
 
@@ -25,7 +25,7 @@ const VALID_TYPES: BusinessType[] = [
 
 export async function POST(req: NextRequest) {
     try {
-        const supabase = await createSupabaseServer();
+        const supabase = await createClient();
 
         // Auth check
         const {

@@ -10,9 +10,9 @@ interface BulkActionsBarProps {
 }
 
 export function BulkActionsBar({ selectedIds, stages, onClearSelection }: BulkActionsBarProps) {
-    const { moveStage, isPending: isMoving } = useBulkMoveStage();
-    const { deleteBulk, isPending: isDeleting } = useBulkDelete();
-    const { exportCsv, isPending: isExporting } = useBulkExport();
+    const { mutate: moveStage, isPending: isMoving } = useBulkMoveStage();
+    const { mutate: deleteBulk, isPending: isDeleting } = useBulkDelete();
+    const { mutate: exportCsv, isPending: isExporting } = useBulkExport();
 
     const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
     const [selectedStageId, setSelectedStageId] = useState<string>('');
