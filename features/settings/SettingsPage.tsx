@@ -12,9 +12,9 @@ import { AICenterSettings } from './AICenterSettings';
 
 import { UsersPage } from './UsersPage';
 import { useAuth } from '@/context/AuthContext';
-import { Settings as SettingsIcon, Users, Database, Sparkles, Plug, Package, Bell, RotateCcw, BarChart3 } from 'lucide-react';
+import { Settings as SettingsIcon, Users, Database, Sparkles, Plug, Package, Bell, RotateCcw, BarChart3, FileText, MessageSquare, Building2 } from 'lucide-react';
 
-type SettingsTab = 'general' | 'products' | 'integrations' | 'ai' | 'notifications' | 'sequences' | 'reports' | 'data' | 'users';
+type SettingsTab = 'general' | 'products' | 'integrations' | 'ai' | 'business-profile' | 'notifications' | 'sequences' | 'templates' | 'followups' | 'reports' | 'data' | 'users';
 
 interface GeneralSettingsProps {
   hash?: string;
@@ -162,6 +162,42 @@ const IntegrationsSettings: React.FC = () => {
   );
 };
 
+// ── Business Profile Editor Wrapper ──
+const BusinessProfileEditorWrapper: React.FC<{ LazyEditor: React.LazyExoticComponent<any> }> = ({ LazyEditor }) => {
+  const [profile, setProfile] = React.useState<Record<string, any>>({});
+  const [saving, setSaving] = React.useState(false);
+  const [loaded, setLoaded] = React.useState(false);
+
+  React.useEffect(() => {
+    fetch('/api/settings/agent', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => {
+        setProfile(d.data?.business_profile || {});
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
+  }, []);
+
+  const handleSave = async (bp: Record<string, any>) => {
+    setSaving(true);
+    try {
+      await fetch('/api/settings/agent', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ business_profile: bp }),
+      });
+      setProfile(bp);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!loaded) return <div className="py-12 text-center text-slate-400">Carregando...</div>;
+
+  return <LazyEditor initialProfile={profile} onSave={handleSave} isSaving={saving} />;
+};
+
 interface SettingsPageProps {
   tab?: SettingsTab;
 }
@@ -201,9 +237,12 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ tab: initialTab }) => {
     { id: 'general' as SettingsTab, name: 'Geral', icon: SettingsIcon },
     ...(profile?.role === 'admin' ? [{ id: 'products' as SettingsTab, name: 'Produtos/Serviços', icon: Package }] : []),
     ...(profile?.role === 'admin' ? [{ id: 'integrations' as SettingsTab, name: 'Integrações', icon: Plug }] : []),
-    { id: 'ai' as SettingsTab, name: 'Central de I.A', icon: Sparkles },
+    { id: 'ai' as SettingsTab, name: 'NossoAgent', icon: Sparkles },
+    { id: 'business-profile' as SettingsTab, name: 'Perfil do Negócio', icon: Building2 },
     { id: 'notifications' as SettingsTab, name: 'Notificações', icon: Bell },
     { id: 'sequences' as SettingsTab, name: 'Sequências', icon: RotateCcw },
+    { id: 'templates' as SettingsTab, name: 'Templates', icon: FileText },
+    { id: 'followups' as SettingsTab, name: 'Follow-ups', icon: MessageSquare },
     { id: 'reports' as SettingsTab, name: 'Relatórios', icon: BarChart3 },
     { id: 'data' as SettingsTab, name: 'Dados', icon: Database },
     ...(profile?.role === 'admin' ? [{ id: 'users' as SettingsTab, name: 'Equipe', icon: Users }] : []),
@@ -227,6 +266,18 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ tab: initialTab }) => {
           </React.Suspense>
         );
       }
+      case 'business-profile': {
+        const BusinessProfileEditor = React.lazy(
+          () => import('./components/BusinessProfileEditor')
+        );
+        return (
+          <React.Suspense fallback={<div className="py-12 text-center text-slate-400">Carregando...</div>}>
+            <div className="pb-10">
+              <BusinessProfileEditorWrapper LazyEditor={BusinessProfileEditor} />
+            </div>
+          </React.Suspense>
+        );
+      }
       case 'sequences': {
         const SequencesManager = React.lazy(
           () => import('./components/SequencesManager')
@@ -234,6 +285,26 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ tab: initialTab }) => {
         return (
           <React.Suspense fallback={<div className="py-12 text-center text-slate-400">Carregando...</div>}>
             <div className="pb-10"><SequencesManager /></div>
+          </React.Suspense>
+        );
+      }
+      case 'templates': {
+        const DealTemplatesManager = React.lazy(
+          () => import('./components/DealTemplatesManager')
+        );
+        return (
+          <React.Suspense fallback={<div className="py-12 text-center text-slate-400">Carregando...</div>}>
+            <div className="pb-10"><DealTemplatesManager /></div>
+          </React.Suspense>
+        );
+      }
+      case 'followups': {
+        const FollowupsManager = React.lazy(
+          () => import('./components/FollowupsManager')
+        );
+        return (
+          <React.Suspense fallback={<div className="py-12 text-center text-slate-400">Carregando...</div>}>
+            <div className="pb-10"><FollowupsManager /></div>
           </React.Suspense>
         );
       }

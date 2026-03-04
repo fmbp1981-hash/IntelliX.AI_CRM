@@ -5,10 +5,17 @@
 
 import { z } from 'zod';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { openai } from '@ai-sdk/openai';
+import { embed } from 'ai';
 
 // ============================================
 // Tool context passed to each execute function
 // ============================================
+import {
+    checkAvailability as gcCheckAvailability,
+    scheduleAppointment as gcScheduleAppointment,
+    cancelAppointment as gcCancelAppointment
+} from '@/lib/integrations/google-calendar';
 
 export interface ToolContext {
     supabase: SupabaseClient;
@@ -163,6 +170,53 @@ export function buildAgentTools(ctx: ToolContext) {
                     return { success: true, contact: data };
                 } catch (err: any) {
                     await logToolExecution(ctx, 'update_contact', params, null, false, err.message);
+                    return { success: false, error: err.message };
+                }
+            },
+        },
+        // ── KNOWLEDGE BASE (RAG) ─────────────────────────
+
+        search_knowledge: {
+            description:
+                'Busca informações na base de conhecimento da empresa. Use quando o lead perguntar sobre serviços, preços, equipe, horários, convênios, procedimentos, imóveis ou qualquer informação interna do negócio.',
+            parameters: z.object({
+                query: z.string().describe('A pergunta ou o termo exato a ser pesquisado'),
+                category: z.string().optional().describe('Opcional. Ex: servicos, precos, equipe, faq, convenios'),
+            }),
+            execute: async (params: { query: string; category?: string }) => {
+                try {
+                    // 1. Generate embedding for query
+                    const { embedding } = await embed({
+                        model: openai.embedding('text-embedding-3-small'),
+                        value: params.query,
+                    });
+
+                    // 2. Search vector DB
+                    const { data, error } = await ctx.supabase.rpc('match_knowledge', {
+                        query_embedding: `[${embedding.join(',')}]`,
+                        match_org_id: ctx.organizationId,
+                        match_threshold: 0.65,
+                        match_count: 5,
+                    });
+
+                    if (error) throw error;
+
+                    // Filter by category if provided
+                    let results = data || [];
+                    if (params.category) {
+                        results = results.filter((r: any) => r.category === params.category);
+                    }
+
+                    await logToolExecution(ctx, 'search_knowledge', params, { chunksFound: results.length }, true);
+
+                    return {
+                        results: results.map((r: any) => `[${r.category}] ${r.document_title}: ${r.content}`),
+                        message: results.length
+                            ? `Encontrei ${results.length} trechos relevantes na base de conhecimento.`
+                            : 'Nenhuma informação específica encontrada na base de conhecimento para essa pergunta.'
+                    };
+                } catch (err: any) {
+                    await logToolExecution(ctx, 'search_knowledge', params, null, false, err.message);
                     return { success: false, error: err.message };
                 }
             },
@@ -521,55 +575,66 @@ export function buildAgentTools(ctx: ToolContext) {
             },
         },
 
-        // ── VERTICAL: CLINICS ────────────────────────
-
+        // ── VERTICAL: CLINICS & REAL ESTATE (SCHEDULING) ──
         check_availability: {
-            description:
-                '[CLÍNICAS] Verifica disponibilidade de horários para agendamento.',
+            description: 'Verifica horários disponíveis na Agenda Principal usando o Google Calendar.',
             parameters: z.object({
-                date: z.string().describe('Data desejada (YYYY-MM-DD)'),
-                period: z
-                    .enum(['manha', 'tarde', 'qualquer'])
-                    .default('qualquer')
-                    .describe('Período'),
+                date: z.string().describe('Data desejada (YYYY-MM-DD)')
             }),
-            execute: async (params: { date: string; period: string }) => {
-                // Check existing appointments for the date
-                const startOfDay = `${params.date}T00:00:00`;
-                const endOfDay = `${params.date}T23:59:59`;
-
-                const { data: existingDeals } = await ctx.supabase
-                    .from('deals')
-                    .select('id, title, custom_fields')
-                    .eq('organization_id', ctx.organizationId)
-                    .gte('created_at', startOfDay)
-                    .lte('created_at', endOfDay);
-
-                const bookedSlots = (existingDeals ?? []).length;
-                const available = bookedSlots < 10;
-
-                const slots: string[] = [];
-                const morningSlots = ['08:00', '09:00', '10:00', '11:00'];
-                const afternoonSlots = ['14:00', '15:00', '16:00', '17:00'];
-
-                if (params.period === 'manha' || params.period === 'qualquer') {
-                    slots.push(...morningSlots);
+            execute: async (params: { date: string }) => {
+                const timeMin = new Date(`${params.date}T00:00:00Z`).toISOString();
+                const timeMax = new Date(`${params.date}T23:59:59Z`).toISOString();
+                try {
+                    const busySlots = await gcCheckAvailability(ctx.organizationId, timeMin, timeMax);
+                    await logToolExecution(ctx, 'check_availability', params, { busySlots }, true);
+                    return { requestedDate: params.date, busySlots, message: 'Horários ocupados retornados da agenda Google' };
+                } catch (e: any) {
+                    await logToolExecution(ctx, 'check_availability', params, null, false, e.message);
+                    return { success: false, error: e.message };
                 }
-                if (params.period === 'tarde' || params.period === 'qualquer') {
-                    slots.push(...afternoonSlots);
+            }
+        },
+        schedule_appointment: {
+            description: 'Agenda um compromisso na Agenda Principal do Google Calendar. Use após verificar a disponibilidade.',
+            parameters: z.object({
+                title: z.string().describe('Título ou Nome do Paciente/Cliente'),
+                description: z.string().describe('Detalhes do agendamento'),
+                start_time: z.string().describe('Data e hora de início no formato ISO (YYYY-MM-DDTHH:mm:ssZ)'),
+                end_time: z.string().describe('Data e hora de término no formato ISO (YYYY-MM-DDTHH:mm:ssZ)'),
+                professional_name: z.string().describe('Nome do Profissional (para salvar no Banco)')
+            }),
+            execute: async (params: { title: string, description: string, start_time: string, end_time: string, professional_name: string }) => {
+                try {
+                    const event = await gcScheduleAppointment(ctx.organizationId, params);
+                    await ctx.supabase.from('appointments').insert({
+                        organization_id: ctx.organizationId, professional_name: params.professional_name,
+                        title: params.title, description: params.description,
+                        start_time: params.start_time, end_time: params.end_time, google_event_id: event.id
+                    });
+                    await logToolExecution(ctx, 'schedule_appointment', params, { eventId: event.id }, true);
+                    return { success: true, message: 'Agendamento confirmado no Google Calendar!', eventId: event.id };
+                } catch (e: any) {
+                    await logToolExecution(ctx, 'schedule_appointment', params, null, false, e.message);
+                    return { success: false, error: e.message };
                 }
-
-                await logToolExecution(ctx, 'check_availability', params, { available, slots }, true);
-
-                return {
-                    date: params.date,
-                    available,
-                    suggested_slots: slots,
-                    message: available
-                        ? `Temos horários disponíveis no dia ${params.date}: ${slots.join(', ')}`
-                        : `Infelizmente não temos horários para ${params.date}.`,
-                };
-            },
+            }
+        },
+        cancel_appointment: {
+            description: 'Cancela um agendamento existente no Google Calendar e atualiza no banco de dados.',
+            parameters: z.object({
+                google_event_id: z.string().describe('O ID do evento no Google Calendar')
+            }),
+            execute: async (params: { google_event_id: string }) => {
+                try {
+                    await gcCancelAppointment(ctx.organizationId, params.google_event_id);
+                    await ctx.supabase.from('appointments').update({ status: 'cancelled' }).eq('google_event_id', params.google_event_id);
+                    await logToolExecution(ctx, 'cancel_appointment', params, { cancelled: true }, true);
+                    return { success: true, message: 'Agendamento cancelado com sucesso.' };
+                } catch (e: any) {
+                    await logToolExecution(ctx, 'cancel_appointment', params, null, false, e.message);
+                    return { success: false, error: e.message };
+                }
+            }
         },
 
         // ── CUSTOM FIELDS ────────────────────────────
@@ -604,12 +669,122 @@ export function buildAgentTools(ctx: ToolContext) {
 
                     if (error) throw error;
                     await logToolExecution(ctx, 'update_custom_field', params, { updated: true }, true);
-                    return { success: true };
-                } catch (err: any) {
-                    await logToolExecution(ctx, 'update_custom_field', params, null, false, err.message);
-                    return { success: false, error: err.message };
+                }),
+                execute: async (params: {
+                    entity_type: string;
+                    entity_id: string;
+                    field_key: string;
+                    field_value: unknown;
+                }) => {
+                    try {
+                        const { error } = await ctx.supabase
+                            .from('custom_field_values')
+                            .upsert(
+                                {
+                                    entity_type: params.entity_type,
+                                    entity_id: params.entity_id,
+                                    field_key: params.field_key,
+                                    field_value: params.field_value,
+                                    organization_id: ctx.organizationId,
+                                },
+                                { onConflict: 'entity_type,entity_id,field_key' }
+                            );
+
+                        if (error) throw error;
+                        await logToolExecution(ctx, 'update_custom_field', params, { updated: true }, true);
+                        return { success: true };
+                    } catch (err: any) {
+                        await logToolExecution(ctx, 'update_custom_field', params, null, false, err.message);
+                        return { success: false, error: err.message };
+                    }
+                },
+        },
+
+            // ── FOLLOW-UPS & NURTURING ────────────────────
+
+            schedule_followup: {
+                description: 'Aciona uma régua/sequência de follow-up (mensagens automáticas) para um lead/contato. Use quando o lead não responder ou precisar de acompanhamento posterior.',
+                parameters: z.object({
+                    sequence_id: z.string().uuid().describe('ID da sequência de follow-up a ser iniciada'),
+                    reason: z.string().optional().describe('Por que o lead está sendo colocado em follow-up'),
+                }),
+                execute: async (params: { sequence_id: string; reason?: string }) => {
+                    try {
+                        // Start follow-up execution
+                        const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/followups/executions`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                sequence_id: params.sequence_id,
+                                conversation_id: ctx.conversationId,
+                            }),
+                        });
+
+                        if (!res.ok) {
+                            const errData = await res.json().catch(() => ({}));
+                            throw new Error(errData.error || 'Failed to start follow-up sequence');
+                        }
+
+                        const data = await res.json();
+
+                        // Log activity
+                        await ctx.supabase.from('activities').insert({
+                            title: 'Follow-up Automático Iniciado',
+                            description: `Sequência iniciada pelo NossoAgent. ${params.reason ? `Motivo: ${params.reason}` : ''}`,
+                            type: 'task',
+                            date: new Date().toISOString(),
+                            organization_id: ctx.organizationId,
+                        });
+
+                        await logToolExecution(ctx, 'schedule_followup', params, data, true);
+                        return { success: true, execution_id: data.id, message: 'Sequência de follow-up iniciada com sucesso.' };
+                    } catch (err: any) {
+                        await logToolExecution(ctx, 'schedule_followup', params, null, false, err.message);
+                        return { success: false, error: err.message };
+                    }
                 }
             },
-        },
-    };
-}
+
+            cancel_followup: {
+                description: 'Cancela acompanhamentos/follow-ups automáticos ativos deste lead. Use quando o lead responder de volta ou pedir para parar.',
+                parameters: z.object({
+                    reason: z.string().describe('Motivo do cancelamento (ex: lead respondeu, lead pediu para parar)')
+                }),
+                execute: async (params: { reason: string }) => {
+                    try {
+                        // Find active executions for this conversation
+                        const { data: executions, error: fetchErr } = await ctx.supabase
+                            .from('followup_executions')
+                            .select('id')
+                            .eq('conversation_id', ctx.conversationId)
+                            .eq('status', 'active');
+
+                        if (fetchErr) throw fetchErr;
+
+                        if (!executions || executions.length === 0) {
+                            return { success: true, message: 'Nenhum follow-up ativo encontrado para cancelar.' };
+                        }
+
+                        // Cancel them
+                        const { error: cancelErr } = await ctx.supabase
+                            .from('followup_executions')
+                            .update({
+                                status: 'cancelled',
+                                result: params.reason,
+                                result_at: new Date().toISOString(),
+                                updated_at: new Date().toISOString()
+                            })
+                            .in('id', executions.map(e => e.id));
+
+                        if (cancelErr) throw cancelErr;
+
+                        await logToolExecution(ctx, 'cancel_followup', params, { cancelledCount: executions.length }, true);
+                        return { success: true, message: `${executions.length} sequências canceladas.` };
+                    } catch (err: any) {
+                        await logToolExecution(ctx, 'cancel_followup', params, null, false, err.message);
+                        return { success: false, error: err.message };
+                    }
+                }
+            },
+        };
+    }

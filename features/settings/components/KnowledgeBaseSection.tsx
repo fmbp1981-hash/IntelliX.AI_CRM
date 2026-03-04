@@ -9,15 +9,31 @@ export const KnowledgeBaseSection: React.FC = () => {
 
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [title, setTitle] = useState('');
+    const [category, setCategory] = useState('faq');
     const [content, setContent] = useState('');
+    const [url, setUrl] = useState('');
     const [sourceType, setSourceType] = useState('text');
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
+        if (file.type === 'application/pdf') {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const b64 = (event.target?.result as string).split(',')[1];
+                setContent(b64);
+                if (!title) {
+                    setTitle(file.name.split('.')[0]);
+                }
+                setSourceType('pdf');
+            };
+            reader.readAsDataURL(file);
+            return;
+        }
+
         if (file.type !== 'text/plain' && !file.name.endsWith('.md') && !file.name.endsWith('.csv')) {
-            showToast('Por enquanto, apenas arquivos de texto (.txt, .md, .csv) são suportados.', 'error');
+            showToast('Por favor, faça upload de arquivos de texto (.txt, .md, .csv) ou PDF (.pdf).', 'error');
             return;
         }
 
@@ -34,15 +50,17 @@ export const KnowledgeBaseSection: React.FC = () => {
     };
 
     const handleAdd = async () => {
-        if (!title.trim() || !content.trim()) {
-            showToast('Título e conteúdo são obrigatórios.', 'error');
+        if (!title.trim() || (!content.trim() && !url.trim())) {
+            showToast('Título e Conteúdo/URL são obrigatórios.', 'error');
             return;
         }
 
         try {
-            await addDocument({ title, content, source_type: sourceType });
+            await addDocument({ title, category, content, url, source_type: url ? 'url' : sourceType });
             setTitle('');
             setContent('');
+            setUrl('');
+            setCategory('faq');
             setIsFormOpen(false);
         } catch (error) {
             // Toast already handled by hook
@@ -95,37 +113,77 @@ export const KnowledgeBaseSection: React.FC = () => {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Título do Documento</label>
-                            <input
-                                type="text"
-                                value={title}
-                                onChange={(e) => setTitle(e.target.value)}
-                                placeholder="Ex: Catálogo de Produtos 2026, Regras de Reembolso"
-                                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
-                            />
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Título do Documento</label>
+                                <input
+                                    type="text"
+                                    value={title}
+                                    onChange={(e) => setTitle(e.target.value)}
+                                    placeholder="Ex: Catálogo de Produtos 2026"
+                                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Categoria (RAG)</label>
+                                <select
+                                    value={category}
+                                    onChange={(e) => setCategory(e.target.value)}
+                                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+                                >
+                                    <option value="faq">FAQ / Dúvidas Frequentes</option>
+                                    <option value="servicos">Serviços e Preços</option>
+                                    <option value="equipe">Equipe e Especialistas</option>
+                                    <option value="horarios">Regras e Horários</option>
+                                    <option value="convenios">Convênios e Pagamento</option>
+                                    <option value="imoveis">Catálogo de Imóveis (Descritivo)</option>
+                                    <option value="vendas">Políticas de Vendas</option>
+                                </select>
+                            </div>
                         </div>
 
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Ou faça upload de um arquivo de texto (.txt, .md, .csv)</label>
-                            <input
-                                type="file"
-                                accept=".txt,.md,.csv"
-                                onChange={handleFileChange}
-                                className="w-full text-sm text-slate-500 dark:text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 dark:file:bg-emerald-900/20 dark:file:text-emerald-400"
-                            />
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                                    <span>Ou Raspe um Site (URL)</span>
+                                    <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full dark:bg-emerald-900/30 dark:text-emerald-400">Novo</span>
+                                </label>
+                                <input
+                                    type="url"
+                                    value={url}
+                                    onChange={(e) => {
+                                        setUrl(e.target.value);
+                                        if (e.target.value) setContent('');
+                                        setSourceType('url');
+                                    }}
+                                    placeholder="https://sua-empresa.com.br/sobre"
+                                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Ou faça upload de Arquivo (.pdf, .txt, .md, .csv)</label>
+                                <input
+                                    type="file"
+                                    accept=".pdf,.txt,.md,.csv"
+                                    onChange={handleFileChange}
+                                    className="w-full text-sm text-slate-500 dark:text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 dark:file:bg-emerald-900/20 dark:file:text-emerald-400"
+                                />
+                            </div>
                         </div>
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Conteúdo do Documento</label>
+                        <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Conteúdo Manual</label>
                         <textarea
                             value={content}
                             onChange={(e) => {
                                 setContent(e.target.value);
+                                if (e.target.value) setUrl('');
                                 setSourceType('text');
                             }}
-                            placeholder="Cole ou digite o texto aqui..."
+                            disabled={!!url}
+                            placeholder={url ? "O conteúdo da URL será extraído automaticamente..." : "Cole ou digite o texto aqui..."}
                             rows={8}
                             className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all resize-y"
                         />
@@ -147,7 +205,7 @@ export const KnowledgeBaseSection: React.FC = () => {
                         </button>
                         <button
                             onClick={handleAdd}
-                            disabled={isAdding || !title.trim() || !content.trim()}
+                            disabled={isAdding || !title.trim() || (!content.trim() && !url.trim())}
                             className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
                         >
                             {isAdding ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
@@ -182,7 +240,7 @@ export const KnowledgeBaseSection: React.FC = () => {
                                 </div>
                                 <h4 className="font-semibold text-slate-900 dark:text-white text-sm line-clamp-2">{doc.title}</h4>
                                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                                    {new Date(doc.created_at).toLocaleDateString('pt-BR')} • {doc.source_type}
+                                    {new Date(doc.created_at).toLocaleDateString('pt-BR')} • {(doc as any).category || 'faq'}
                                 </p>
                             </div>
 

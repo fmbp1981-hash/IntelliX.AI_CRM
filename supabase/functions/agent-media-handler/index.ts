@@ -85,7 +85,7 @@ serve(async (req: Request) => {
             {
               role: "user",
               content: [
-                { type: "text", text: "Descreva de forma detalhada o que há nesta imagem, focando em informações relevantes para um CRM de vendas (ex: faturas, comprovantes, documentos de identificação, fotos de imóveis/produtos)." },
+                { type: "text", text: "Descreva de forma detalhada o que há nesta imagem, focando em informações relevantes para um CRM de vendas (ex: faturas, comprovantes, documentos de identificação, fotos de imóveis/produtos). Seja direto, sem introduções." },
                 { type: "image_url", image_url: { url: dataUrl } }
               ]
             }
@@ -101,12 +101,29 @@ serve(async (req: Request) => {
       }
 
       const visionData = await visionRes.json();
-      extractedText = `[Imagem Recebida. Descrição da IA]: ${visionData.choices[0].message.content}`;
+      const description = visionData.choices[0]?.message?.content || 'Imagem recebida sem descrição legível.';
+      extractedText = `[Imagem Recebida. Descrição da IA]: ${description}`;
     } else {
       extractedText = `[Arquivo recebido: ${media_type}] (Tipo não processado pela IA)`;
     }
 
     console.log(`Media extracted text for ${whatsapp_number}:`, extractedText);
+
+    // Save to storage (optional, but good practice for CRM)
+    const fileName = `${organization_id}/${whatsapp_number}/${Date.now()}.${mime_type.split('/')[1] || 'bin'}`;
+    const { data: storageData, error: storageError } = await supabase.storage
+      .from('conversation_media')
+      .upload(fileName, mediaBlob, {
+        contentType: mime_type,
+        upsert: false
+      });
+
+    if (storageError) {
+      console.warn("Media storage warning:", storageError.message);
+    }
+
+    // Get public URL to pass it to the engine
+    const publicUrl = storageData ? supabase.storage.from('conversation_media').getPublicUrl(fileName).data.publicUrl : media_url;
 
     // 3. Forward the extracted text to agent-engine
     const engineRes = await fetch(`${SUPABASE_URL}/functions/v1/agent-engine`, {
@@ -121,7 +138,8 @@ serve(async (req: Request) => {
         whatsapp_name,
         message_content: extractedText,
         content_type: 'text', // Injecting it as standard text for the AI to reason about
-        whatsapp_message_id
+        whatsapp_message_id,
+        media_url: publicUrl // Include the public URL if saved
       })
     });
 
@@ -130,7 +148,7 @@ serve(async (req: Request) => {
       throw new Error("Engine rejected the forwarded text");
     }
 
-    return new Response(JSON.stringify({ success: true, extracted_text: extractedText }), {
+    return new Response(JSON.stringify({ success: true, extracted_text: extractedText, target_url: publicUrl }), {
       headers: { 'Content-Type': 'application/json' },
       status: 200,
     });

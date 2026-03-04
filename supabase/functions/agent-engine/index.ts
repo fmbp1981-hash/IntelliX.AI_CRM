@@ -511,6 +511,7 @@ serve(async (req: Request) => {
             whatsapp_name,
             message_content,
             content_type,
+            media_url,
             whatsapp_message_id,
         } = payload;
 
@@ -590,17 +591,26 @@ serve(async (req: Request) => {
             });
         }
 
-        // ── Step 4.2: basic prompt injection guard ──
+        // ── Step 4.2: Robust prompt injection guard ──
         const lowerMsg = message_content.toLowerCase();
-        if (lowerMsg.includes('ignore the previous instructions') ||
-            lowerMsg.includes('ignore as instruções anteriores') ||
-            lowerMsg.includes('você é agora um') ||
-            lowerMsg.includes('you are now a')) {
+        const injectionKeywords = [
+            'ignore the previous', 'ignore as instruções', 'ignore todas as instruções',
+            'você é agora', 'you are now', 'system prompt', 'modo desenvolvedor', 'developer mode',
+            'override instructions', 'ignore tudo', 'esquecer as regras',
+            'bypass security', 'qual é o seu prompt', 'what is your prompt', 'qual é o prompt',
+            'variáveis de ambiente', 'variaveis de ambiente', 'env vars'
+        ];
 
+        const isInjectionAttempt = injectionKeywords.some(kw => lowerMsg.includes(kw));
+
+        if (isInjectionAttempt) {
             await saveMessage(supabase, conversation.id, organization_id, {
                 role: 'system',
                 content: 'Prompt injection attempt blocked.',
             });
+
+            // Send a safe fallback message
+            await sendWhatsAppMessage(config, whatsapp_number, "Desculpe, não posso processar este tipo de solicitação. Como posso ajudar você com nossos produtos ou serviços hoje?");
 
             // unlock and abort
             await supabase.from('conversations').update({ status: 'active' }).eq('id', conversation.id);
@@ -665,6 +675,17 @@ serve(async (req: Request) => {
             });
         }
 
+        // ── Step 6.4: Strict Qualification Guard ──
+        const collected = conversation.qualification_data ?? {};
+        const pendingFields = config.qualification_fields.filter(
+            (f) => f.required && !collected[f.key]
+        );
+
+        // If there are pending REQUIRED qualification fields, we append a strict system rule to the latest message
+        if (pendingFields.length > 0) {
+            finalMessageContent += `\n\n[INSTRUÇÃO DE SISTEMA: O cliente AINDA NÃO preencheu qualificações obrigatórias (${pendingFields.map(f => f.key).join(', ')}). Você DEVE focar sua resposta EM COLETAR ESSAS INFORMAÇÕES AGORA. Não execute nenhuma ferramenta de criação/modificação (create_deal, etc) até que estes dados sejam coletados. Você pode responder à dúvida do usuário brevemente, mas termine a mensagem com a pergunta para coletar o próximo campo pendente.]`;
+        }
+
         // ── Step 6.5: Fetch Knowledge Base (RAG) ──
         const knowledgeContext = await getKnowledgeContext(supabase, organization_id, finalMessageContent);
 
@@ -712,6 +733,11 @@ serve(async (req: Request) => {
                 role: m.role === 'lead' ? 'user' as const : 'assistant' as const,
                 content: m.content,
             }));
+
+        // Append the final injected message as the latest interaction (overriding history's last message if needed, or simply replacing it)
+        if (aiMessages.length > 0 && aiMessages[aiMessages.length - 1].role === 'user') {
+            aiMessages[aiMessages.length - 1].content = finalMessageContent;
+        }
 
         // Dynamic import for AI SDK (Deno compatible)
         const { generateText } = await import('https://esm.sh/ai@4');

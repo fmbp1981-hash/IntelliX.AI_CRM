@@ -23,8 +23,8 @@ export function useKnowledgeBase() {
     });
 
     const createMutation = useMutation({
-        mutationFn: async (doc: { title: string; content: string; source_type?: string }) => {
-            const res = await fetch('/api/settings/knowledge', {
+        mutationFn: async (doc: { title: string; category: string; content: string; source_type?: string }) => {
+            const res = await fetch('/api/settings/knowledge/ingest', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(doc),

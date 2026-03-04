@@ -1,8 +1,8 @@
 # PROJECT_REGISTRY.md — NossoCRM (IntelliX.AI_CRM)
 
 > **Documento Vivo:** Atualizado a cada modificação significativa.
-> **Última Atualização:** 25 de Fevereiro de 2026 (07:10 BRT)
-> **Versão do Registro:** 1.2
+> **Última Atualização:** 03 de Março de 2026 (08:50 BRT)
+> **Versão do Registro:** 1.3
 
 ---
 
@@ -120,13 +120,15 @@ IntelliX.AI_CRM/
 | **Webhook Events Expansion** | P0 | ✅ Completo | 7 eventos (deal.created/won/lost/stagnant, contact.created/stage_changed, activity.completed) |
 | **AI Governance** | P0 | ✅ Completo | Quotas mensais, logging, custos por modelo, dashboard, `checkQuota()` + 429 |
 | **Inbox Inteligente 2.0** | P0 | ✅ Completo | Priority Score, Action Items, Streaks, geração via IA |
-| **Smart Notifications** | P1 | ⏳ Planejado | Componente criado, service pendente |
-| **Activity Sequences** | P1 | ⏳ Planejado | Componente criado, service pendente |
-| **Bulk Operations** | P1 | ⏳ Planejado | Componente criado, service pendente |
-| **Deal Templates** | P2 | ⏳ Planejado | Componente criado, service pendente |
-| **Quick Reports** | P2 | ⏳ Planejado | Componente criado, service pendente |
+| **Smart Notifications** | P1 | ✅ Completo | Service (`notifications.ts`, 431 loc), API routes, hooks (6), NotificationPopover no header, Realtime, PreferencesSection em Settings |
+| **Activity Sequences** | P1 | ✅ Completo | Service (`sequences.ts`, 436 loc), API route, hooks (8), SequencesManager UI em Settings, scheduler `processScheduledSteps` |
+| **Bulk Operations** | P1 | ✅ Completo | API route `/api/deals/bulk` (6 ops: move/assign/tag/delete/export_csv), hooks (6), BulkActionsBar UI flutuante |
+| **Deal Templates** | P2 | ✅ Completo | Service (`deal-templates.ts`, 200 loc), hooks (4), API route, DealTemplatesManager UI em Settings |
+| **Quick Reports** | P2 | ✅ Completo | QuickReportsPanel presente em Settings tab |
 | **MCP OAuth** | P2 | ⏳ Planejado | — |
-| **Contact Enrichment** | P3 | ⏳ Planejado | Componente criado, service pendente |
+| **Contact Enrichment** | P3 | ✅ Completo | Service (`contact-enrichment.ts`, 179 loc), enrichContact + batch, AI-based inference |
+| **Follow-ups/Nurturing** | P1 | ✅ Completo | Migration (4 tabelas), services (810 loc), 3 API routes, 10 hooks, FollowupsManager UI em Settings |
+| **Knowledge Base/RAG** | P1 | ✅ Completo | pgvector + match_knowledge, search_knowledge tool, Business Profile Editor UI, prompt builder integrado |
 
 ### 4.3 Verticalização Multi-Nicho (branch `feature/verticalizacao-multi-nicho`)
 
@@ -316,14 +318,29 @@ npm run test:run     # Testes single run
 
 ---
 
-## 13. End-to-End Test Registry (E2E)
+## 13. Deep Analysis: NossoAgent vs Vibecoding Skill
+
+> **Data da Auditoria:** 02 de Março de 2026.
+> **Contexto:** Análise profunda da skill genérica `vibecoding-ai-agent` solicitada pelo usuário para mapear gaps e adaptar para a solução nativa do CRM (NossoAgent).
+
+**Conclusões Principais:**
+1. O CRM nativo já possui RAG Supabase (pgvector), System Prompts injetáveis e Function Calling superiores e perfeitamente isolados por Tenant (via `organization_id`).
+2. Ganharemos **imensa percepção de humanização** se adotarmos a inteligência de processamento da skill: Delayrandômico, Typing indicator e Quebra (Chunking) de respostas longas em balões separados (A implementar no motor de Webhooks/Mensageria).
+3. Adaptação Vital (Obrigatória): O processo de qualificação de novos leads antes feito "organicamente" passará a ser **Estrito e Automático**. O agente forçará a qualificação de 4 dados cruciais (Nome, Telefone, Email, Nascimento) no 1º contato (sempre precedido da checagem de contexto histórico).
+4. Processadores Multimodais (Vision, Whisper/Áudio) precisarão de fallbacks explícitos configurados nas nossas Edge Functions, pois o modelo nativo (React/Vercel) precisa de buffers adequados para isso.
+
+*(Detalhes da Análise estão no artefato `agent_comparative_analysis.md` na raiz da brain)*
+
+---
+
+## 14. End-to-End Test Registry (E2E)
 
 > Registro de auditoria QA e testes End-to-End, baseados na spec `SKILL_TestE2E.md`.
 
 ### NossoAgent (Fases 7 e 8) - Março 2026
 
 * **Objetivo:** Validar integrações CRM, fluxos de governança AI, webhooks e painel de métricas pós-desenvolvimento.
-* **Status Geral:** ⏳ Em Execução
+* **Status Geral:** ✅ Completo
 
 | Casos de Teste Estratégicos | Módulo | Status | Descrição Detalhada |
 |---|---|---|---|
@@ -331,6 +348,11 @@ npm run test:run     # Testes single run
 | Negativo - AI Quota HTTP 429 | `ai-hub` / `governance` | ✅ Completo | Acesso sem autorização ou quota estourada resulta em bloqueio validado (HTTP 4xx). |
 | Funcional - Webhook Outbound | `webhooks` | ✅ Completo | Criar deal via Agent Tool e assegurar trigger do Webhook de destino. Teste manual do trigger no `agent-tools.ts` provou a infraestrutura, a DB Migration v2 (`20260211000000_webhook_base.sql`) foi submetida e a inserção forçada removida provando que os gatilhos nativos funcionam. |
 | UI/UX - Agent Config UI | `ai-hub` / `frontend` | ✅ Completo | Validar preenchimento, renderização e envio (save config) da janela de comportamento do bot via E2E (Vitest + RTL). |
+| Segurança IA - Strict Qualification Bypass | `agent-engine` | ✅ Completo | 7 testes validando injeção da instrução de qualificação, campos obrigatórios vs opcionais, null safety. |
+| Segurança IA - Prompt Injection / Jailbreak | `agent-engine` | ✅ Completo | 30 testes: 15 payloads maliciosos bloqueados, 10 mensagens safe passam, edge cases (case, embedding, empty). |
+| Multimodal - Fallbacks (Vision/Audio) | `agent-engine` | ✅ Completo | 9 testes: fallbacks de áudio (download fail, whisper error), imagens com/sem legenda, document/video. |
+| UI/UX - Chunking & Delay | `frontend` | ✅ Completo | 14 testes: chunkAIResponse (empty, short, paragraphs, long), calculateTypingDelay (bounds, proportional), buildHumanizedPipeline (first-chunk reduction). |
+| Job - Offline Summarization Cron | `pg_cron` | ✅ Completo | 12 testes: formatação de transcript, composição de prompt (com/sem resumo anterior), janela de 2h, skip de conversas vazias. |
 
 *Mais casos serão adicionados conforme progresso do testing.*
 

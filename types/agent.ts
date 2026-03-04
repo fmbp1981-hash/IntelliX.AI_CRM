@@ -87,6 +87,8 @@ export interface AgentConfig {
     max_conversations_simultaneous: number;
     cooldown_after_transfer_minutes: number;
 
+    business_profile: Record<string, any>;
+
     created_at: string;
     updated_at: string;
 }
@@ -211,7 +213,9 @@ export type AgentToolName =
     | 'search_deals'
     | 'property_match'
     | 'check_availability'
-    | 'search_knowledge';
+    | 'search_knowledge'
+    | 'schedule_followup'
+    | 'cancel_followup';
 
 export interface AgentToolLog {
     id: string;

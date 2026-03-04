@@ -5,6 +5,8 @@ import { createAnthropic } from '@ai-sdk/anthropic';
 import { CRMCallOptionsSchema, type CRMCallOptions } from '@/types/ai';
 import { createCRMTools } from './tools';
 import { formatPriorityPtBr } from '@/lib/utils/priority';
+import { AGENT_SYSTEM_PROMPT_BASE, getNichePrompt } from './agent-prompts';
+import { buildBusinessProfilePrompt } from './business-profile-prompt';
 
 type AIProvider = 'google' | 'openai' | 'anthropic';
 
@@ -516,9 +518,11 @@ export async function createCRMAgent(
         instructions: BASE_INSTRUCTIONS,
         // prepareCall runs ONCE at the start - injects initial context
         prepareCall: ({ options, ...settings }) => {
+            const nichePrompt = getNichePrompt(options.niche || 'generico');
+            const businessProfilePrompt = buildBusinessProfilePrompt(options.businessProfile || {});
             return {
                 ...settings,
-                instructions: settings.instructions + buildContextPrompt(options),
+                instructions: AGENT_SYSTEM_PROMPT_BASE + '\n\n' + nichePrompt + businessProfilePrompt + '\n\n' + settings.instructions + buildContextPrompt(options),
             };
         },
         // prepareStep runs on EACH STEP - extracts and injects dynamic context

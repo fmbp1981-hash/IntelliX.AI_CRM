@@ -82,6 +82,18 @@ export const queryKeys = {
         byDeal: (dealId: string) => [...base.all, 'deal', dealId] as const,
         active: () => [...base.all, 'active'] as const,
     })),
+
+    // Follow-up Sequences & Executions
+    followupSequences: createExtendedQueryKeys('followupSequences', base => ({
+        byType: (type: string) => [...base.all, 'type', type] as const,
+        active: () => [...base.all, 'active'] as const,
+    })),
+
+    followupExecutions: createExtendedQueryKeys('followupExecutions', base => ({
+        active: () => [...base.all, 'active'] as const,
+        byConversation: (conversationId: string) => [...base.all, 'conversation', conversationId] as const,
+        byDeal: (dealId: string) => [...base.all, 'deal', dealId] as const,
+    })),
 };
 
 /**
