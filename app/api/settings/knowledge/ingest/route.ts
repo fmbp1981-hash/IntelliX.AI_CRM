@@ -15,7 +15,7 @@ function splitIntoChunks(text: string, chunkSize: number, overlap: number): stri
     // Simple word-based chunker for RAG
     // 1 token ~= 4 characters in English, so 400 tokens ~= 1600 characters or ~300 words.
     // We'll split by words as a simple robust heuristic.
-    const words = text.split(/\s+/);
+    const words = text.split(/\s+/).filter(w => w.length > 0);
     const chunks: string[] = [];
 
     const wordChunkSize = Math.floor((chunkSize * 4) / 5); // Rough approx

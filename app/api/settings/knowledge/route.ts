@@ -84,7 +84,15 @@ export async function DELETE(request: Request) {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-        const { error } = await supabase.from('knowledge_documents').delete().eq('id', id);
+        const { data: profile } = await supabase.from('profiles').select('organization_id').eq('id', user.id).single();
+        if (!profile?.organization_id) return NextResponse.json({ error: 'Organization not found' }, { status: 404 });
+
+        const { error } = await supabase
+            .from('knowledge_documents')
+            .delete()
+            .eq('id', id)
+            .eq('organization_id', profile.organization_id);
+
         if (error) return NextResponse.json({ error: 'Delete failed' }, { status: 500 });
 
         return NextResponse.json({ success: true });

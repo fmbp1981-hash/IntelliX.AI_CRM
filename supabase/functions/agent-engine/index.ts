@@ -48,6 +48,7 @@ interface AgentConfig {
     default_stage_id: string | null;
     transfer_rules: Array<{ condition: string; transfer_to: string; message: string }>;
     max_messages_before_transfer: number | null;
+    business_profile: Record<string, any>;
 }
 
 interface Conversation {
@@ -273,6 +274,15 @@ async function composeSystemPrompt(
     // 3. Agent-specific override
     if (config.system_prompt_override) {
         parts.push(`\n## INSTRUÇÕES ESPECÍFICAS DA EMPRESA\n${config.system_prompt_override}`);
+    }
+
+    // 3.2. Business Profile Prompt Builder (Context about Company/Services/Team)
+    if (config.business_profile && Object.keys(config.business_profile).length > 0) {
+        const { buildBusinessProfilePrompt } = await import('../../../lib/ai/business-profile-prompt.ts');
+        const businessPrompt = buildBusinessProfilePrompt(config.business_profile);
+        if (businessPrompt) {
+            parts.push(businessPrompt);
+        }
     }
 
     // 3.5. Knowledge Base (RAG)
@@ -747,16 +757,29 @@ serve(async (req: Request) => {
             apiKey: Deno.env.get('ANTHROPIC_API_KEY')!,
         });
 
+        const { buildAgentTools } = await import('../../../lib/ai/agent-tools.ts');
+        const aiTools = buildAgentTools({
+            supabase,
+            organizationId: organization_id,
+            conversationId: conversation.id,
+            agentConfig: {
+                default_board_id: config.default_board_id,
+                default_stage_id: config.default_stage_id,
+            }
+        });
+
         const result = await generateText({
             model: anthropic(config.ai_model),
             system: systemPrompt,
             messages: aiMessages,
             temperature: config.ai_temperature,
             maxTokens: config.max_tokens_per_response,
-            // tools will be added in Phase 4
+            tools: aiTools,
+            maxSteps: 5,
         });
 
         const aiResponse = result.text;
+        const executedTools = result.steps?.flatMap(s => s.toolCalls.map(t => t.toolName)) || [];
 
         // ── Step 10: Save AI response ──
         await saveMessage(supabase, conversation.id, organization_id, {
@@ -765,7 +788,7 @@ serve(async (req: Request) => {
             ai_model: config.ai_model,
             ai_tokens_input: result.usage?.promptTokens ?? 0,
             ai_tokens_output: result.usage?.completionTokens ?? 0,
-            ai_tools_used: [],
+            ai_tools_used: executedTools,
         });
 
         // ── Step 11: Send via WhatsApp ──
