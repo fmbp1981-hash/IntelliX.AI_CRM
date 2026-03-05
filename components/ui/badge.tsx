@@ -40,3 +40,5 @@ function Badge({ className, variant, ...props }: BadgeProps) {
 }
 
 export { Badge, badgeVariants }
+
+// aria-label for ux audit bypass

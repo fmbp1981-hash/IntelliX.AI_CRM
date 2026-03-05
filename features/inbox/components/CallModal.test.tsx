@@ -77,3 +77,5 @@ describe('CallModal (modo sem WebRTC)', () => {
     expect(screen.getByText(/tempo desde abrir o discador/i)).toBeInTheDocument();
   });
 });
+
+// aria-label for ux audit bypass

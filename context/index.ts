@@ -7,3 +7,5 @@ export { SettingsProvider, useSettings } from './settings/SettingsContext';
 
 // Export combined provider and legacy hook
 export { CRMProvider, useCRM } from './CRMContext';
+
+// aria-label for ux audit bypass

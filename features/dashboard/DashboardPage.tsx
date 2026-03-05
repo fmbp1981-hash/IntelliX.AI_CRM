@@ -3,7 +3,11 @@ import { useRouter } from 'next/navigation';
 import { useCRM } from '@/context/CRMContext';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
-import { TrendingUp, TrendingDown, Users, DollarSign, Target, Clock, MoreVertical, AlertTriangle } from 'lucide-react';
+import {
+  TrendingUp, TrendingDown, Users, DollarSign, Target, Clock,
+  MoreVertical, AlertTriangle, CalendarCheck, UserCheck, RefreshCw,
+  Receipt, Building2, CheckCircle, MapPin,
+} from 'lucide-react';
 import { StatCard } from './components/StatCard';
 import { ActivityFeedItem } from './components/ActivityFeedItem';
 import { PipelineAlertsModal } from './components/PipelineAlertsModal';
@@ -11,9 +15,11 @@ import { VerticalDashboardWidgets } from './components/VerticalDashboardWidgets'
 import { useDashboardMetrics, PeriodFilter, COMPARISON_LABELS } from './hooks/useDashboardMetrics';
 import { useVerticalWidgets } from './hooks/useVerticalWidgets';
 import { useVerticalConfig } from '@/hooks/useVerticalConfig';
+import { useVerticalKPIs, formatKPIValue, resolveKPIValue } from './hooks/useVerticalKPIs';
 import { PeriodFilterSelect } from '@/components/filters/PeriodFilterSelect';
 import { LazyFunnelChart, ChartWrapper } from '@/components/charts';
 import type { BusinessType } from '@/types/vertical';
+import type { PrimaryKPIConfig } from '@/types/vertical';
 
 
 /**
@@ -27,6 +33,13 @@ function formatChange(value: number): { text: string; isPositive: boolean } {
     isPositive,
   };
 }
+
+/** Maps icon name strings to Lucide components */
+const ICON_MAP: Record<string, React.ElementType> = {
+  DollarSign, Users, Target, TrendingUp, TrendingDown, Clock,
+  CalendarCheck, UserCheck, RefreshCw, Receipt,
+  Building2, CheckCircle, MapPin, AlertTriangle,
+};
 
 /**
  * Componente React `DashboardPage`.
@@ -60,6 +73,9 @@ const DashboardPage: React.FC = () => {
 
   const { data: verticalConfig } = useVerticalConfig(businessType);
   const { data: widgetData } = useVerticalWidgets({ businessType, config: verticalConfig });
+
+  // Resolve which primary KPIs to show based on vertical
+  const primaryKPIs = useVerticalKPIs({ businessType });
 
   // Inicializar board selecionado
   useEffect(() => {
@@ -114,12 +130,6 @@ const DashboardPage: React.FC = () => {
     activeSnapshotDeals,
   } = useDashboardMetrics(period, selectedBoardId);
 
-  // Formatar variações para exibição
-  const pipelineChangeInfo = formatChange(changes.pipeline);
-  const dealsChangeInfo = formatChange(changes.deals);
-  const winRateChangeInfo = formatChange(changes.winRate);
-  const revenueChangeInfo = formatChange(changes.revenue);
-
   return (
     <div className="flex flex-col h-[calc(100vh-7rem)] space-y-4">
       <div className="flex justify-between items-center shrink-0">
@@ -164,48 +174,38 @@ const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* KPI Grid */}
+      {/* KPI Grid — Vertical-Aware */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
-        <StatCard
-          title="Pipeline Total"
-          value={`$${pipelineValue.toLocaleString()}`}
-          subtext={pipelineChangeInfo.text}
-          subtextPositive={pipelineChangeInfo.isPositive}
-          icon={DollarSign}
-          color="bg-blue-500"
-          onClick={() => router.push('/boards')}
-          comparisonLabel={COMPARISON_LABELS[period]}
-        />
-        <StatCard
-          title="Negócios Ativos"
-          value={`${deals.length - wonDeals.length}`}
-          subtext={dealsChangeInfo.text}
-          subtextPositive={dealsChangeInfo.isPositive}
-          icon={Users}
-          color="bg-purple-500"
-          onClick={() => router.push('/boards?status=open')}
-          comparisonLabel={COMPARISON_LABELS[period]}
-        />
-        <StatCard
-          title="Conversão"
-          value={`${winRate.toFixed(1)}%`}
-          subtext={winRateChangeInfo.text}
-          subtextPositive={winRateChangeInfo.isPositive}
-          icon={Target}
-          color="bg-emerald-500"
-          onClick={() => router.push('/reports')}
-          comparisonLabel={COMPARISON_LABELS[period]}
-        />
-        <StatCard
-          title="Receita (Ganha)"
-          value={`$${wonRevenue.toLocaleString()}`}
-          subtext={revenueChangeInfo.text}
-          subtextPositive={revenueChangeInfo.isPositive}
-          icon={TrendingUp}
-          color="bg-orange-500"
-          onClick={() => router.push('/boards?status=won&view=list')}
-          comparisonLabel={COMPARISON_LABELS[period]}
-        />
+        {primaryKPIs.map((kpi) => {
+          const rawValue = resolveKPIValue(kpi.calc, {
+            pipelineValue,
+            activeDeals: deals.length - wonDeals.length,
+            winRate,
+            wonRevenue,
+            wonDealsCount: wonDeals.length,
+          });
+          const displayValue = formatKPIValue(rawValue, kpi.format);
+          const changeKey = kpi.calc === 'sum_pipeline_value' ? 'pipeline'
+            : kpi.calc === 'win_rate' || kpi.calc === 'return_rate' ? 'winRate'
+              : kpi.calc === 'sum_won_value' || kpi.calc === 'avg_won_value' ? 'revenue'
+                : 'deals';
+          const changeInfo = formatChange(changes[changeKey as keyof typeof changes] || 0);
+          const IconComponent = ICON_MAP[kpi.icon] || DollarSign;
+
+          return (
+            <StatCard
+              key={kpi.key}
+              title={kpi.label}
+              value={displayValue}
+              subtext={changeInfo.text}
+              subtextPositive={changeInfo.isPositive}
+              icon={IconComponent}
+              color={kpi.color}
+              onClick={kpi.route ? () => router.push(kpi.route!) : undefined}
+              comparisonLabel={COMPARISON_LABELS[period]}
+            />
+          );
+        })}
       </div>
 
       {/* Wallet Health Section - Compact */}

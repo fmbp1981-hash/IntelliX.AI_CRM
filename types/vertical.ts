@@ -120,6 +120,19 @@ export interface DashboardWidget {
     key: string;
     label: string;
     calc?: string;
+    format?: 'currency' | 'number' | 'percent';
+    icon?: string;
+    color?: string;
+}
+
+export interface PrimaryKPIConfig {
+    key: string;
+    label: string;
+    format: 'currency' | 'number' | 'percent';
+    icon: string;
+    color: string;
+    calc: string;
+    route?: string;
 }
 
 // =============================================================================

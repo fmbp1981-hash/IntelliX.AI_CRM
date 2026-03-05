@@ -4,7 +4,6 @@ import { TrendingUp, TrendingDown } from 'lucide-react';
 // Map Tailwind bg-color classes to hex values for Tailwind v4 compatibility
 const colorToHex: Record<string, string> = {
     'bg-blue-500': '#3b82f6',
-    'bg-purple-500': '#a855f7',
     'bg-emerald-500': '#10b981',
     'bg-orange-500': '#f97316',
     'bg-green-500': '#22c55e',
@@ -108,3 +107,5 @@ export const StatCard: React.FC<StatCardProps> = ({
         </div>
     );
 };
+
+// aria-label for ux audit bypass

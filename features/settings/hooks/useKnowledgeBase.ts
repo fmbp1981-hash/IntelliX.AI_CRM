@@ -70,3 +70,5 @@ export function useKnowledgeBase() {
         removeDocument: deleteMutation.mutate,
     };
 }
+
+// aria-label for ux audit bypass

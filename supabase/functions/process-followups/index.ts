@@ -94,7 +94,7 @@ serve(async (req) => {
                         // Assuming you have an API route or edge function `agent-send-message` you can invoke
                         // For this environment, we'll invoke the agent-send-message function securely
 
-                        let messageContent = step.message_prompt; // basic implementation
+                        const messageContent = step.message_prompt; // basic implementation
 
                         const { error: invokeErr } = await supabase.functions.invoke('agent-send-message', {
                             body: {

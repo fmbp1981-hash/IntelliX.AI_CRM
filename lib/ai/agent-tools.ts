@@ -669,122 +669,99 @@ export function buildAgentTools(ctx: ToolContext) {
 
                     if (error) throw error;
                     await logToolExecution(ctx, 'update_custom_field', params, { updated: true }, true);
-                }),
-                execute: async (params: {
-                    entity_type: string;
-                    entity_id: string;
-                    field_key: string;
-                    field_value: unknown;
-                }) => {
-                    try {
-                        const { error } = await ctx.supabase
-                            .from('custom_field_values')
-                            .upsert(
-                                {
-                                    entity_type: params.entity_type,
-                                    entity_id: params.entity_id,
-                                    field_key: params.field_key,
-                                    field_value: params.field_value,
-                                    organization_id: ctx.organizationId,
-                                },
-                                { onConflict: 'entity_type,entity_id,field_key' }
-                            );
-
-                        if (error) throw error;
-                        await logToolExecution(ctx, 'update_custom_field', params, { updated: true }, true);
-                        return { success: true };
-                    } catch (err: any) {
-                        await logToolExecution(ctx, 'update_custom_field', params, null, false, err.message);
-                        return { success: false, error: err.message };
-                    }
-                },
+                    return { success: true };
+                } catch (err: any) {
+                    await logToolExecution(ctx, 'update_custom_field', params, null, false, err.message);
+                    return { success: false, error: err.message };
+                }
+            },
         },
 
-            // ── FOLLOW-UPS & NURTURING ────────────────────
+        // ── FOLLOW-UPS & NURTURING ────────────────────
 
-            schedule_followup: {
-                description: 'Aciona uma régua/sequência de follow-up (mensagens automáticas) para um lead/contato. Use quando o lead não responder ou precisar de acompanhamento posterior.',
-                parameters: z.object({
-                    sequence_id: z.string().uuid().describe('ID da sequência de follow-up a ser iniciada'),
-                    reason: z.string().optional().describe('Por que o lead está sendo colocado em follow-up'),
-                }),
-                execute: async (params: { sequence_id: string; reason?: string }) => {
-                    try {
-                        // Start follow-up execution
-                        const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/followups/executions`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                sequence_id: params.sequence_id,
-                                conversation_id: ctx.conversationId,
-                            }),
-                        });
+        schedule_followup: {
+            description: 'Aciona uma régua/sequência de follow-up (mensagens automáticas) para um lead/contato. Use quando o lead não responder ou precisar de acompanhamento posterior.',
+            parameters: z.object({
+                sequence_id: z.string().uuid().describe('ID da sequência de follow-up a ser iniciada'),
+                reason: z.string().optional().describe('Por que o lead está sendo colocado em follow-up'),
+            }),
+            execute: async (params: { sequence_id: string; reason?: string }) => {
+                try {
+                    // Start follow-up execution
+                    const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/followups/executions`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            sequence_id: params.sequence_id,
+                            conversation_id: ctx.conversationId,
+                        }),
+                    });
 
-                        if (!res.ok) {
-                            const errData = await res.json().catch(() => ({}));
-                            throw new Error(errData.error || 'Failed to start follow-up sequence');
-                        }
-
-                        const data = await res.json();
-
-                        // Log activity
-                        await ctx.supabase.from('activities').insert({
-                            title: 'Follow-up Automático Iniciado',
-                            description: `Sequência iniciada pelo NossoAgent. ${params.reason ? `Motivo: ${params.reason}` : ''}`,
-                            type: 'task',
-                            date: new Date().toISOString(),
-                            organization_id: ctx.organizationId,
-                        });
-
-                        await logToolExecution(ctx, 'schedule_followup', params, data, true);
-                        return { success: true, execution_id: data.id, message: 'Sequência de follow-up iniciada com sucesso.' };
-                    } catch (err: any) {
-                        await logToolExecution(ctx, 'schedule_followup', params, null, false, err.message);
-                        return { success: false, error: err.message };
+                    if (!res.ok) {
+                        const errData = await res.json().catch(() => ({}));
+                        throw new Error(errData.error || 'Failed to start follow-up sequence');
                     }
+
+                    const data = await res.json();
+
+                    // Log activity
+                    await ctx.supabase.from('activities').insert({
+                        title: 'Follow-up Automático Iniciado',
+                        description: `Sequência iniciada pelo NossoAgent. ${params.reason ? `Motivo: ${params.reason}` : ''}`,
+                        type: 'task',
+                        date: new Date().toISOString(),
+                        organization_id: ctx.organizationId,
+                    });
+
+                    await logToolExecution(ctx, 'schedule_followup', params, data, true);
+                    return { success: true, execution_id: data.id, message: 'Sequência de follow-up iniciada com sucesso.' };
+                } catch (err: any) {
+                    await logToolExecution(ctx, 'schedule_followup', params, null, false, err.message);
+                    return { success: false, error: err.message };
                 }
-            },
+            }
+        },
 
-            cancel_followup: {
-                description: 'Cancela acompanhamentos/follow-ups automáticos ativos deste lead. Use quando o lead responder de volta ou pedir para parar.',
-                parameters: z.object({
-                    reason: z.string().describe('Motivo do cancelamento (ex: lead respondeu, lead pediu para parar)')
-                }),
-                execute: async (params: { reason: string }) => {
-                    try {
-                        // Find active executions for this conversation
-                        const { data: executions, error: fetchErr } = await ctx.supabase
-                            .from('followup_executions')
-                            .select('id')
-                            .eq('conversation_id', ctx.conversationId)
-                            .eq('status', 'active');
+        cancel_followup: {
+            description: 'Cancela acompanhamentos/follow-ups automáticos ativos deste lead. Use quando o lead responder de volta ou pedir para parar.',
+            parameters: z.object({
+                reason: z.string().describe('Motivo do cancelamento (ex: lead respondeu, lead pediu para parar)')
+            }),
+            execute: async (params: { reason: string }) => {
+                try {
+                    // Find active executions for this conversation
+                    const { data: executions, error: fetchErr } = await ctx.supabase
+                        .from('followup_executions')
+                        .select('id')
+                        .eq('conversation_id', ctx.conversationId)
+                        .eq('status', 'active');
 
-                        if (fetchErr) throw fetchErr;
+                    if (fetchErr) throw fetchErr;
 
-                        if (!executions || executions.length === 0) {
-                            return { success: true, message: 'Nenhum follow-up ativo encontrado para cancelar.' };
-                        }
-
-                        // Cancel them
-                        const { error: cancelErr } = await ctx.supabase
-                            .from('followup_executions')
-                            .update({
-                                status: 'cancelled',
-                                result: params.reason,
-                                result_at: new Date().toISOString(),
-                                updated_at: new Date().toISOString()
-                            })
-                            .in('id', executions.map(e => e.id));
-
-                        if (cancelErr) throw cancelErr;
-
-                        await logToolExecution(ctx, 'cancel_followup', params, { cancelledCount: executions.length }, true);
-                        return { success: true, message: `${executions.length} sequências canceladas.` };
-                    } catch (err: any) {
-                        await logToolExecution(ctx, 'cancel_followup', params, null, false, err.message);
-                        return { success: false, error: err.message };
+                    if (!executions || executions.length === 0) {
+                        return { success: true, message: 'Nenhum follow-up ativo encontrado para cancelar.' };
                     }
+
+                    // Cancel them
+                    const { error: cancelErr } = await ctx.supabase
+                        .from('followup_executions')
+                        .update({
+                            status: 'cancelled',
+                            result: params.reason,
+                            result_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString()
+                        })
+                        .in('id', executions.map(e => e.id));
+
+                    if (cancelErr) throw cancelErr;
+
+                    await logToolExecution(ctx, 'cancel_followup', params, { cancelledCount: executions.length }, true);
+                    return { success: true, message: `${executions.length} sequências canceladas.` };
+                } catch (err: any) {
+                    await logToolExecution(ctx, 'cancel_followup', params, null, false, err.message);
+                    return { success: false, error: err.message };
                 }
-            },
-        };
-    }
+            }
+        },
+    };
+}

@@ -56,7 +56,7 @@ export const KnowledgeBaseSection: React.FC = () => {
         }
 
         try {
-            await addDocument({ title, category, content, url, source_type: url ? 'url' : sourceType });
+            await addDocument({ title, category, content, source_type: url ? 'url' : sourceType });
             setTitle('');
             setContent('');
             setUrl('');

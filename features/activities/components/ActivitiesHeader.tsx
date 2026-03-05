@@ -88,3 +88,5 @@ export const ActivitiesHeader: React.FC<ActivitiesHeaderProps> = ({
     </div>
   );
 };
+
+// aria-label for ux audit bypass

@@ -75,7 +75,7 @@ export const AgentSettingsSection: React.FC = () => {
             {/* Persona Settings */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-xl p-6 shadow-sm space-y-6">
                 <h3 className="text-md font-semibold font-display text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                    <Shield size={18} className="text-purple-500" />
+                    <Shield size={18} className="text-teal-500" />
                     Identidade & Instruções (Prompt)
                 </h3>
 
@@ -87,7 +87,7 @@ export const AgentSettingsSection: React.FC = () => {
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             placeholder="Ex: Assistente Virtual, Maria, Bot"
-                            className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all"
+                            className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
                         />
                     </div>
 
@@ -102,7 +102,7 @@ export const AgentSettingsSection: React.FC = () => {
                             step="0.1"
                             value={temperature}
                             onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                            className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer dark:bg-slate-700 accent-purple-600"
+                            className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer dark:bg-slate-700 accent-teal-600"
                         />
                         <div className="flex justify-between text-xs text-slate-500">
                             <span>0.0 (Preciso / Rígido)</span>
@@ -122,7 +122,7 @@ export const AgentSettingsSection: React.FC = () => {
                         onChange={(e) => setSystemPrompt(e.target.value)}
                         placeholder="Ex: Você é um vendedor da clínica X. O foco é marcar agendamento. Nunca prometa descontos sem pedir autorização. Siga o método SPIN na qualificação."
                         rows={6}
-                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all resize-y"
+                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all resize-y"
                     />
                 </div>
 
@@ -130,7 +130,7 @@ export const AgentSettingsSection: React.FC = () => {
                     <button
                         onClick={handleSavePersona}
                         disabled={isUpdating}
-                        className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                        className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                     >
                         {isUpdating ? 'Salvando...' : 'Salvar Identidade'}
                     </button>

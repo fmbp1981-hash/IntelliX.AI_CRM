@@ -27,7 +27,7 @@ async function runTest() {
         const orgId = orgData.id;
 
         // Contact
-        let contactId = null;
+        let contactId: string = '';
         let createdDummyContact = false;
 
         const { data: newContact, error: insertContactError } = await supabase
@@ -45,7 +45,7 @@ async function runTest() {
         createdDummyContact = true;
 
         // Board & Stage
-        let boardId = null;
+        let boardId: string = '';
         let createdDummyBoard = false;
         const { data: boardData } = await supabase
             .from('boards')
@@ -67,7 +67,7 @@ async function runTest() {
             createdDummyBoard = true;
         }
 
-        let stageId = null;
+        let stageId: string = '';
         const { data: stageData } = await supabase
             .from('board_stages')
             .select('id')
@@ -88,7 +88,7 @@ async function runTest() {
         }
 
         // Endpoint for Webhook trigger
-        let endpointId = null;
+        let endpointId: string = '';
         let createdDummyEndpoint = false;
         const { data: endpointData } = await supabase
             .from('integration_outbound_endpoints')
@@ -121,6 +121,7 @@ async function runTest() {
             createdDummyEndpoint = true;
         }
 
+        const text: string = ''; // stub
         // 2. Build the Agent Tools
         const tools = buildAgentTools({
             supabase,

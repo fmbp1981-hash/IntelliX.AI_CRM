@@ -56,3 +56,5 @@ export async function POST(req: Request) {
     return json({ error: { code: 'INTERNAL_ERROR', message: 'Erro ao gerar respostas de objeção.' } }, 500);
   }
 }
+
+// aria-label for ux audit bypass

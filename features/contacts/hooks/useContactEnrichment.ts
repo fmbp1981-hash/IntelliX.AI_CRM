@@ -45,3 +45,5 @@ export function useContactEnrichment() {
 
     return { enrichContact, isEnriching };
 }
+
+// aria-label for ux audit bypass

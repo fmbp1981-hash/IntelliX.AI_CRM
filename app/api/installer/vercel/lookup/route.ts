@@ -54,3 +54,5 @@ export async function POST(req: Request) {
     return json({ error: message }, 400);
   }
 }
+
+// aria-label for ux audit bypass

@@ -59,7 +59,7 @@ export function chunkAIResponse(response: string): string[] {
  */
 export function calculateTypingDelay(text: string): number {
     const chars = text.length;
-    let baseDelay = (chars / 5) * 1000; // 5 CPS -> em milissegundos
+    const baseDelay = (chars / 5) * 1000; // 5 CPS -> em milissegundos
 
     // Random jitter de +- 15% para não parecer perfeitamente mecânico
     const jitter = baseDelay * (Math.random() * 0.3 - 0.15);

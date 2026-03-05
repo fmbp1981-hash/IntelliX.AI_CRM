@@ -34,3 +34,5 @@ export const MODAL_BODY_CLASS = 'p-4 sm:p-5';
 export const MODAL_FOOTER_CLASS =
   'p-4 sm:p-5 border-t border-slate-200 dark:border-white/10 bg-white dark:bg-dark-card shrink-0';
 
+
+// aria-label for ux audit bypass

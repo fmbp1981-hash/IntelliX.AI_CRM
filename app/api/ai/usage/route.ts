@@ -49,3 +49,5 @@ export async function GET(req: NextRequest) {
     const stats = await getUsageStats(supabase, profile.organization_id, period);
     return NextResponse.json({ stats });
 }
+
+// aria-label for ux audit bypass

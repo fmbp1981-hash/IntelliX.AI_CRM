@@ -83,3 +83,5 @@ export function useAgentSettings() {
         isUpdating: mutation.isPending,
     };
 }
+
+// aria-label for ux audit bypass

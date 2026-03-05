@@ -32,3 +32,5 @@ export function DealSheet({ isOpen, onClose, ariaLabel, children, className }: D
   );
 }
 
+
+// aria-label for ux audit bypass

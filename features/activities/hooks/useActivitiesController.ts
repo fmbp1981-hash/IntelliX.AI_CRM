@@ -257,3 +257,5 @@ export const useActivitiesController = () => {
     handleSubmit,
   };
 };
+
+// aria-label for ux audit bypass

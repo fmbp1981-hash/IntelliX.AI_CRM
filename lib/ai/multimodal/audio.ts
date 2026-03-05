@@ -21,8 +21,8 @@ export async function transcribeAudio(
     const formData = new FormData();
 
     // Se for Buffer do Node, converte para Blob p/ adequar ao padrão Fetch FormData
-    const blob = audioBlob instanceof Buffer ? new Blob([audioBlob], { type: 'audio/ogg' }) : audioBlob;
-    formData.append('file', blob, filename);
+    const blob = audioBlob instanceof Buffer ? new Blob([new Uint8Array(audioBlob as unknown as Uint8Array)], { type: 'audio/ogg' }) : audioBlob;
+    formData.append('file', blob as Blob, filename);
     formData.append('model', 'whisper-1');
 
     const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {

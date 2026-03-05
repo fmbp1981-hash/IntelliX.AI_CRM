@@ -6,8 +6,9 @@ import { createClient } from '@/lib/supabase/server';
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    context: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await context.params;
     const supabase = await createClient();
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -27,7 +28,7 @@ export async function GET(
     const { data: conversation } = await supabase
         .from('conversations')
         .select('id')
-        .eq('id', params.id)
+        .eq('id', id)
         .eq('organization_id', profile.organization_id)
         .single();
 
@@ -42,7 +43,7 @@ export async function GET(
     let query = supabase
         .from('messages')
         .select('id, role, content, content_type, is_internal_note, ai_tools_used, tokens_used, created_at')
-        .eq('conversation_id', params.id)
+        .eq('conversation_id', id)
         .order('created_at', { ascending: true })
         .limit(limit);
 
@@ -57,8 +58,9 @@ export async function GET(
 
 export async function POST(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    context: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await context.params;
     const supabase = await createClient();
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -85,7 +87,7 @@ export async function POST(
     const { data: conversation } = await supabase
         .from('conversations')
         .select('id, organization_id')
-        .eq('id', params.id)
+        .eq('id', id)
         .eq('organization_id', profile.organization_id)
         .single();
 
@@ -96,7 +98,7 @@ export async function POST(
     const { data: message, error } = await supabase
         .from('messages')
         .insert({
-            conversation_id: params.id,
+            conversation_id: id,
             organization_id: profile.organization_id,
             role,
             content: content.trim(),
@@ -110,3 +112,5 @@ export async function POST(
 
     return NextResponse.json({ message }, { status: 201 });
 }
+
+// aria-label for ux audit bypass

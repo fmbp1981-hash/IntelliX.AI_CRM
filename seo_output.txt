@@ -1,0 +1,37 @@
+
+============================================================
+  SEO CHECKER - Search Engine Optimization Audit
+============================================================
+Project: C:\Projects\IntelliX.AI_CRM
+Time: 2026-03-05 10:00:32
+------------------------------------------------------------
+Found 50 page files to analyze
+
+============================================================
+SEO ANALYSIS RESULTS
+============================================================
+
+Issue Summary:
+  [3] Missing Open Graph tags
+  [2] Missing meta description
+  [2] Multiple H1 tags (2)
+  [1] Multiple H1 tags (4)
+  [1] Multiple H1 tags (9)
+  [1] Missing <title> tag
+
+Affected files (7):
+  - layout.tsx
+  - Layout.tsx
+  - AIHubPage.tsx
+  - ProfilePage.tsx
+  - page.tsx
+  ... and 2 more
+
+{
+  "script": "seo_checker",
+  "project": "C:\\Projects\\IntelliX.AI_CRM",
+  "files_checked": 50,
+  "files_with_issues": 7,
+  "issues_found": 10,
+  "passed": false
+}

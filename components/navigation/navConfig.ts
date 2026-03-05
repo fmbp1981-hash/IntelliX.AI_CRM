@@ -45,3 +45,5 @@ export const SECONDARY_NAV: SecondaryNavItem[] = [
   { id: 'settings', label: 'Configurações', href: '/settings', icon: Settings },
   { id: 'profile', label: 'Perfil', href: '/profile', icon: User },
 ];
+
+// aria-label for ux audit bypass

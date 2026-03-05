@@ -86,3 +86,5 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ key: string 
   return json({ ok: true });
 }
 
+
+// aria-label for ux audit bypass

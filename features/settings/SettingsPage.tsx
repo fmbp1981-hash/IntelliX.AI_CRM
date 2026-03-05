@@ -163,7 +163,7 @@ const IntegrationsSettings: React.FC = () => {
 };
 
 // ── Business Profile Editor Wrapper ──
-const BusinessProfileEditorWrapper: React.FC<{ LazyEditor: React.LazyExoticComponent<any> }> = ({ LazyEditor }) => {
+const BusinessProfileEditorWrapper: React.FC<{ LazyEditor: React.ComponentType<any> }> = ({ LazyEditor }) => {
   const [profile, setProfile] = React.useState<Record<string, any>>({});
   const [saving, setSaving] = React.useState(false);
   const [loaded, setLoaded] = React.useState(false);

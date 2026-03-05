@@ -308,8 +308,8 @@ const ReportsPage: React.FC = () => {
         {/* Ciclo Médio */}
         <div className="glass p-4 rounded-xl border border-slate-200 dark:border-white/5 shadow-sm">
           <div className="flex items-center gap-2 mb-2">
-            <div className="p-2 rounded-lg bg-purple-500/10">
-              <Clock className="text-purple-500" size={18} />
+            <div className="p-2 rounded-lg bg-teal-500/10">
+              <Clock className="text-teal-500" size={18} />
             </div>
             <span className="text-xs text-slate-500">Ciclo Médio</span>
           </div>

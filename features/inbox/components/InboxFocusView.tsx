@@ -344,7 +344,7 @@ export const InboxFocusView: React.FC<InboxFocusViewProps> = ({
     if (activity) {
       switch (activity.type) {
         case 'CALL': return 'text-blue-500';
-        case 'MEETING': return 'text-purple-500';
+        case 'MEETING': return 'text-teal-500';
         default: return 'text-slate-500';
       }
     }

@@ -144,7 +144,7 @@ export const ActivityStatusIcon: React.FC<ActivityStatusIconProps> = ({
                             }}
                             className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 rounded flex items-center gap-2 focus-visible-ring"
                         >
-                            <Mail size={14} className="text-purple-500" aria-hidden="true" /> Email amanhã
+                            <Mail size={14} className="text-teal-500" aria-hidden="true" /> Email amanhã
                         </button>
                         <button 
                             type="button"

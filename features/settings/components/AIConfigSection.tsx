@@ -286,7 +286,7 @@ export const AIConfigSection: React.FC = () => {
     return (
         <div id="ai-config" className="mt-6 border-t border-slate-200 dark:border-white/10 pt-6 scroll-mt-8">
             <div className="flex items-center gap-3 mb-4">
-                <div className="p-1.5 bg-purple-100 dark:bg-purple-900/20 rounded-lg text-purple-600 dark:text-purple-400">
+                <div className="p-1.5 bg-teal-100 dark:bg-teal-900/20 rounded-lg text-teal-600 dark:text-teal-400">
                     <Bot size={24} />
                 </div>
                 <div>
@@ -330,7 +330,7 @@ export const AIConfigSection: React.FC = () => {
                                 id="ai-provider-select"
                                 value={aiProvider}
                                 onChange={handleProviderChange}
-                                className="w-full appearance-none bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all"
+                                className="w-full appearance-none bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
                             >
                                 {AI_PROVIDERS.map(p => (
                                     <option key={p.id} value={p.id}>{p.name}</option>
@@ -369,7 +369,7 @@ export const AIConfigSection: React.FC = () => {
                                         showToast(err instanceof Error ? err.message : 'Falha ao atualizar modelo', 'error');
                                     }
                                 }}
-                                className="w-full appearance-none bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all"
+                                className="w-full appearance-none bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
                             >
                                 {currentProvider?.models.map(m => (
                                     <option key={m.id} value={m.id}>
@@ -393,7 +393,7 @@ export const AIConfigSection: React.FC = () => {
                                         setCustomModelDirty(true);
                                     }}
                                     placeholder="Digite o ID do modelo (ex: gemini-1.5-pro-latest)"
-                                    className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all"
+                                    className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
                                 />
                                 <p className="text-xs text-slate-500 mt-1">
                                     Consulte a documentação do provedor para obter o ID correto.
@@ -426,7 +426,7 @@ export const AIConfigSection: React.FC = () => {
                                         disabled={isSavingModel || !customModelDraft.trim()}
                                         className={`px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all ${isSavingModel || !customModelDraft.trim()
                                             ? 'bg-slate-200 dark:bg-white/10 text-slate-400 cursor-not-allowed'
-                                            : 'bg-purple-600 hover:bg-purple-700 text-white shadow-sm'
+                                            : 'bg-teal-600 hover:bg-teal-700 text-white shadow-sm'
                                             }`}
                                     >
                                         {isSavingModel ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
@@ -539,7 +539,7 @@ export const AIConfigSection: React.FC = () => {
                                 value={localApiKey}
                                 onChange={(e) => handleKeyChange(e.target.value)}
                                 placeholder={`Cole sua chave ${aiProvider === 'google' ? 'AIza...' : 'sk-...'}`}
-                                className={`w-full bg-slate-50 dark:bg-slate-800 border rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all font-mono ${validationStatus === 'invalid'
+                                className={`w-full bg-slate-50 dark:bg-slate-800 border rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all font-mono ${validationStatus === 'invalid'
                                         ? 'border-red-300 dark:border-red-500/50'
                                         : validationStatus === 'valid'
                                             ? 'border-green-300 dark:border-green-500/50'
@@ -548,7 +548,7 @@ export const AIConfigSection: React.FC = () => {
                             />
                             <div className="absolute right-3 top-1/2 -translate-y-1/2">
                                 {isValidating ? (
-                                    <Loader2 size={16} className="text-purple-500 animate-spin" />
+                                    <Loader2 size={16} className="text-teal-500 animate-spin" />
                                 ) : validationStatus === 'valid' ? (
                                     <CheckCircle size={16} className="text-green-500" />
                                 ) : validationStatus === 'invalid' ? (
@@ -563,7 +563,7 @@ export const AIConfigSection: React.FC = () => {
                             disabled={isValidating || !localApiKey.trim() || (!hasUnsavedChanges && validationStatus === 'valid')}
                             className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all ${isValidating || !localApiKey.trim() || (!hasUnsavedChanges && validationStatus === 'valid')
                                     ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
-                                    : 'bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-600/20'
+                                    : 'bg-teal-600 hover:bg-teal-700 text-white shadow-lg shadow-teal-600/20'
                                 }`}
                         >
                             {isValidating ? (

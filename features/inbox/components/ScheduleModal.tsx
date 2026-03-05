@@ -25,7 +25,7 @@ export interface ScheduleData {
 
 const typeConfig = {
     CALL: { label: 'Ligação', icon: Phone, color: 'blue' },
-    MEETING: { label: 'Reunião', icon: Calendar, color: 'purple' },
+    MEETING: { label: 'Reunião', icon: Calendar, color: 'teal' },
     TASK: { label: 'Tarefa', icon: Clock, color: 'orange' },
 };
 
@@ -169,13 +169,13 @@ export function ScheduleModal({
                                         key={t}
                                         onClick={() => setType(t)}
                                         className={`p-3 rounded-lg border flex flex-col items-center gap-1 transition-all ${isSelected
-                                                ? `border-${cfg.color}-500 bg-${cfg.color}-500/10 text-${cfg.color}-400`
-                                                : 'border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-600'
+                                            ? `border-${cfg.color}-500 bg-${cfg.color}-500/10 text-${cfg.color}-400`
+                                            : 'border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-600'
                                             }`}
                                         style={isSelected ? {
-                                            borderColor: cfg.color === 'blue' ? '#3b82f6' : cfg.color === 'purple' ? '#a855f7' : '#f97316',
-                                            backgroundColor: cfg.color === 'blue' ? 'rgba(59,130,246,0.1)' : cfg.color === 'purple' ? 'rgba(168,85,247,0.1)' : 'rgba(249,115,22,0.1)',
-                                            color: cfg.color === 'blue' ? '#60a5fa' : cfg.color === 'purple' ? '#c084fc' : '#fb923c',
+                                            borderColor: cfg.color === 'blue' ? '#3b82f6' : cfg.color === 'teal' ? '#14b8a6' : '#f97316',
+                                            backgroundColor: cfg.color === 'blue' ? 'rgba(59,130,246,0.1)' : cfg.color === 'teal' ? 'rgba(20,184,166,0.1)' : 'rgba(249,115,22,0.1)',
+                                            color: cfg.color === 'blue' ? '#60a5fa' : cfg.color === 'teal' ? '#5eead4' : '#fb923c',
                                         } : {}}
                                     >
                                         <Icon size={18} />
@@ -236,8 +236,8 @@ export function ScheduleModal({
                                     key={label}
                                     onClick={() => setDate(dateStr)}
                                     className={`px-3 py-1 text-xs rounded-full transition-colors ${date === dateStr
-                                            ? 'bg-primary-500 text-white'
-                                            : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                                        ? 'bg-primary-500 text-white'
+                                        : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
                                         }`}
                                 >
                                     {label}

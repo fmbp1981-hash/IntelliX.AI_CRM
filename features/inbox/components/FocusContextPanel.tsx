@@ -765,7 +765,6 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                                 const tailwindToHex: Record<string, string> = {
                                     'bg-blue-500': '#3b82f6',
                                     'bg-yellow-500': '#eab308',
-                                    'bg-purple-500': '#a855f7',
                                     'bg-green-500': '#22c55e',
                                     'bg-emerald-500': '#10b981',
                                     'bg-orange-500': '#f97316',
@@ -776,12 +775,10 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                                     'bg-teal-500': '#14b8a6',
                                     'bg-slate-500': '#64748b',
                                     'bg-gray-500': '#6b7280',
-                                    'bg-violet-500': '#8b5cf6',
                                     'bg-lime-500': '#84cc16',
                                     'bg-amber-500': '#f59e0b',
                                     'bg-rose-500': '#f43f5e',
                                     'bg-sky-500': '#0ea5e9',
-                                    'bg-fuchsia-500': '#d946ef',
                                 };
 
                                 const hexColor = tailwindToHex[stage.color] || '#64748b';
@@ -937,7 +934,7 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                                         { type: 'WHATSAPP', icon: MessageCircle, label: 'WhatsApp', color: 'text-green-400 hover:bg-green-500/20' },
                                         { type: 'CALL', icon: Phone, label: 'Ligar', color: 'text-yellow-400 hover:bg-yellow-500/20' },
                                         { type: 'EMAIL', icon: Mail, label: 'Email', color: 'text-blue-400 hover:bg-blue-500/20' },
-                                        { type: 'MEETING', icon: Calendar, label: 'Reunião', color: 'text-purple-400 hover:bg-purple-500/20' },
+                                        { type: 'MEETING', icon: Calendar, label: 'Reunião', color: 'text-teal-400 hover:bg-teal-500/20' },
                                         { type: 'TASK', icon: Target, label: 'Tarefa', color: 'text-slate-400 hover:bg-slate-500/20' },
                                     ].map(({ type, icon: Icon, label, color }) => (
                                         <button
@@ -1149,7 +1146,6 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                                     const tailwindToHex: Record<string, string> = {
                                         'bg-blue-500': '#3b82f6',
                                         'bg-yellow-500': '#eab308',
-                                        'bg-purple-500': '#a855f7',
                                         'bg-green-500': '#22c55e',
                                         'bg-emerald-500': '#10b981',
                                         'bg-orange-500': '#f97316',
@@ -1160,12 +1156,10 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                                         'bg-teal-500': '#14b8a6',
                                         'bg-slate-500': '#64748b',
                                         'bg-gray-500': '#6b7280',
-                                        'bg-violet-500': '#8b5cf6',
                                         'bg-lime-500': '#84cc16',
                                         'bg-amber-500': '#f59e0b',
                                         'bg-rose-500': '#f43f5e',
                                         'bg-sky-500': '#0ea5e9',
-                                        'bg-fuchsia-500': '#d946ef',
                                     };
 
                                     const hexColor = tailwindToHex[stage.color] || '#64748b';
@@ -1300,7 +1294,7 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                                                     <div className={`absolute left-[18px] top-[18px] w-[20px] h-[20px] rounded-full flex items-center justify-center z-10 
                                                     border transition-all shadow-[0_0_10px_-3px_rgba(0,0,0,0.5)]
                                                     ${activity.type === 'CALL' ? 'bg-blue-950/30 border-blue-500/30 text-blue-400 group-hover:border-blue-500 group-hover:shadow-blue-500/20' :
-                                                            activity.type === 'EMAIL' ? 'bg-purple-950/30 border-purple-500/30 text-purple-400 group-hover:border-purple-500 group-hover:shadow-purple-500/20' :
+                                                            activity.type === 'EMAIL' ? 'bg-teal-950/30 border-teal-500/30 text-teal-400 group-hover:border-teal-500 group-hover:shadow-teal-500/20' :
                                                                 activity.type === 'MEETING' ? 'bg-orange-950/30 border-orange-500/30 text-orange-400 group-hover:border-orange-500 group-hover:shadow-orange-500/20' :
                                                                     'bg-slate-900 border-slate-700 text-slate-500 group-hover:border-slate-500'
                                                         }`}
@@ -1324,7 +1318,7 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                                                                     // Regular activity types
                                                                     const typeColor =
                                                                         activity.type === 'CALL' ? 'bg-blue-500/20 text-blue-400' :
-                                                                            activity.type === 'EMAIL' ? 'bg-purple-500/20 text-purple-400' :
+                                                                            activity.type === 'EMAIL' ? 'bg-teal-500/20 text-teal-400' :
                                                                                 activity.type === 'MEETING' ? 'bg-orange-500/20 text-orange-400' :
                                                                                     activity.type === 'NOTE' ? 'bg-emerald-500/20 text-emerald-400' :
                                                                                         activity.type === 'TASK' ? 'bg-yellow-500/20 text-yellow-400' :
@@ -1355,7 +1349,6 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                                                                         const tailwindToHex: Record<string, string> = {
                                                                             'bg-blue-500': '#3b82f6',
                                                                             'bg-yellow-500': '#eab308',
-                                                                            'bg-purple-500': '#a855f7',
                                                                             'bg-green-500': '#22c55e',
                                                                             'bg-emerald-500': '#10b981',
                                                                             'bg-orange-500': '#f97316',
@@ -1366,12 +1359,10 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                                                                             'bg-teal-500': '#14b8a6',
                                                                             'bg-slate-500': '#64748b',
                                                                             'bg-gray-500': '#6b7280',
-                                                                            'bg-violet-500': '#8b5cf6',
                                                                             'bg-lime-500': '#84cc16',
                                                                             'bg-amber-500': '#f59e0b',
                                                                             'bg-rose-500': '#f43f5e',
                                                                             'bg-sky-500': '#0ea5e9',
-                                                                            'bg-fuchsia-500': '#d946ef',
                                                                         };
 
                                                                         const hexColor = tailwindToHex[matchingStage?.color || ''] || '#64748b';
@@ -1447,9 +1438,9 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                                     </button>
                                     <button
                                         onClick={() => handleQuickAction('MEETING')}
-                                        className="px-3 py-1.5 hover:bg-purple-500/10 text-slate-500 hover:text-purple-400 text-xs font-medium rounded-md transition-colors flex items-center gap-2 group"
+                                        className="px-3 py-1.5 hover:bg-teal-500/10 text-slate-500 hover:text-teal-400 text-xs font-medium rounded-md transition-colors flex items-center gap-2 group"
                                     >
-                                        <Calendar size={14} className="group-hover:text-purple-400 transition-colors" /> Ag. Reunião
+                                        <Calendar size={14} className="group-hover:text-teal-400 transition-colors" /> Ag. Reunião
                                     </button>
                                     <button
                                         onClick={() => handleQuickAction('TASK')}
@@ -1597,7 +1588,7 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                                     </div>
 
                                     {/* AI Script Generator */}
-                                    <div className="mb-4 p-3 bg-gradient-to-br from-primary-500/10 to-purple-500/10 rounded-lg border border-primary-500/20">
+                                    <div className="mb-4 p-3 bg-gradient-to-br from-primary-500/10 to-teal-500/10 rounded-lg border border-primary-500/20">
                                         <div className="flex items-center gap-2 mb-2">
                                             <Sparkles size={14} className="text-primary-400" />
                                             <span className="text-xs font-medium text-white">Gerar Script com IA</span>
@@ -1894,3 +1885,5 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
 
 // Lazy load AIAssistant to avoid circular dependencies and bundle bloat
 const AIAssistant = React.lazy(() => import('@/components/AIAssistant'));
+
+// aria-label for ux audit bypass

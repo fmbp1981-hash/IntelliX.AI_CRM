@@ -23,7 +23,7 @@ import {
   X,
 } from 'lucide-react';
 
-type Stage = { id: string; label: string; tone: 'blue' | 'violet' | 'amber' | 'green' | 'slate' };
+type Stage = { id: string; label: string; tone: 'blue' | 'emerald' | 'amber' | 'green' | 'slate' };
 
 type TimelineItem = {
   id: string;
@@ -62,7 +62,7 @@ type QuickAction = {
 
 const stages: Stage[] = [
   { id: 'discover', label: 'Descoberta', tone: 'blue' },
-  { id: 'proposal', label: 'Proposta', tone: 'violet' },
+  { id: 'proposal', label: 'Proposta', tone: 'emerald' },
   { id: 'negotiation', label: 'Negociação', tone: 'amber' },
   { id: 'won', label: 'Ganho', tone: 'green' },
   { id: 'lost', label: 'Perdido', tone: 'slate' },
@@ -136,8 +136,8 @@ function toneToBg(tone: Stage['tone']): string {
   switch (tone) {
     case 'blue':
       return 'bg-sky-500';
-    case 'violet':
-      return 'bg-violet-500';
+    case 'emerald':
+      return 'bg-emerald-500';
     case 'amber':
       return 'bg-amber-500';
     case 'green':

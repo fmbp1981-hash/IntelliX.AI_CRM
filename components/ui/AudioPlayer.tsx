@@ -111,7 +111,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ src, variant = 'received' }) 
     // Styles Configuration
     const styles = {
         sent: {
-            btn: 'bg-white text-purple-600 hover:bg-white/90',
+            btn: 'bg-white text-teal-600 hover:bg-white/90',
             barActive: 'bg-white/90',
             barInactive: 'bg-white/30',
             text: 'text-white/90'
@@ -123,8 +123,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ src, variant = 'received' }) 
             text: 'text-slate-500 dark:text-slate-400'
         },
         preview: {
-            btn: 'bg-purple-600 text-white hover:bg-purple-700',
-            barActive: 'bg-purple-600',
+            btn: 'bg-teal-600 text-white hover:bg-teal-700',
+            barActive: 'bg-teal-600',
             barInactive: 'bg-slate-300 dark:bg-slate-700',
             text: 'text-slate-500 dark:text-slate-400'
         }

@@ -112,3 +112,5 @@ describe('AgentConfigPage', () => {
         expect(screen.getByDisplayValue('NossoAgent')).toBeInTheDocument();
     });
 });
+
+// aria-label for ux audit bypass

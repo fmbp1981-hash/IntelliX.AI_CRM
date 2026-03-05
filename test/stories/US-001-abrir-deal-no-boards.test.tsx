@@ -115,14 +115,19 @@ vi.mock('@/context/CRMContext', () => ({
   },
 }));
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
 describe('Story — US-001: Abrir deal no Boards', () => {
   it('simula a história e garante que não quebra', async () => {
     const user = userEvent.setup();
 
     const Harness = ({ open }: { open: boolean }) => (
-      <div>
-        <DealDetailModal dealId="deal-1" isOpen={open} onClose={() => {}} />
-      </div>
+      <QueryClientProvider client={queryClient}>
+        <div>
+          <DealDetailModal dealId="deal-1" isOpen={open} onClose={() => { }} />
+        </div>
+      </QueryClientProvider>
     );
 
     const { rerender } = render(<Harness open={false} />);
