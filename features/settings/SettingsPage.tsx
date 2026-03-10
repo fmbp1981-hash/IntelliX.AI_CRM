@@ -42,6 +42,19 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = ({ hash, isAdmin }) => {
     <div className="pb-10">
       {/* General Settings */}
       <div className="mb-12">
+        <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-6 mb-6">
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">Nicho de Mercado (Vertical)</h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+            Altere o nicho do CRM para habilitar configurações, widgets do painel e fluxos de trabalho específicos (ex: Clínica Médica, Imobiliária).
+          </p>
+          <a
+            href="/onboarding/nicho"
+            className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            Selecionar Nicho
+          </a>
+        </div>
+
         <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-6">
           <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">Página Inicial</h3>
           <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
