@@ -227,7 +227,200 @@ async function getConversationHistory(
 }
 
 // ============================================
-// Helper: Compose system prompt
+// Phase 5: Methodology Resolution (stage > board > global)
+// ============================================
+
+interface ResolvedMethodology {
+    base_prompt: string | null;       // From stage/board override or template
+    agent_role: string;               // e.g. "closer", "sdr", "generic"
+    methodology_guide: string | null; // Inline methodology instructions
+    tone_section: string | null;      // From agent_configs.tone_of_voice
+    business_context: string | null;  // From agent_configs.business_context_extended
+    behavioral_training: string | null; // From agent_configs.behavioral_training
+    qualification_criteria: Record<string, unknown>; // Stage-specific criteria
+}
+
+async function resolveMethodology(
+    supabase: SupabaseClient,
+    orgId: string,
+    stageId: string | null,
+    boardId: string | null
+): Promise<ResolvedMethodology> {
+    // 1. Try agent_stage_configs (highest priority)
+    if (stageId) {
+        const { data: stageCfg } = await supabase
+            .from('agent_stage_configs')
+            .select('*')
+            .eq('organization_id', orgId)
+            .eq('stage_id', stageId)
+            .single();
+
+        if (stageCfg?.system_prompt_override) {
+            const personalization = await loadPersonalization(supabase, orgId);
+            return {
+                base_prompt: stageCfg.system_prompt_override,
+                agent_role: stageCfg.agent_role ?? 'generic',
+                methodology_guide: null, // override takes full control
+                ...personalization,
+                qualification_criteria: stageCfg.qualification_criteria ?? {},
+            };
+        }
+    }
+
+    // 2. Try agent_board_configs
+    if (boardId) {
+        const { data: boardCfg } = await supabase
+            .from('agent_board_configs')
+            .select('*')
+            .eq('organization_id', orgId)
+            .eq('board_id', boardId)
+            .single();
+
+        if (boardCfg?.system_prompt_override) {
+            const personalization = await loadPersonalization(supabase, orgId);
+            return {
+                base_prompt: boardCfg.system_prompt_override,
+                agent_role: boardCfg.agent_role ?? 'generic',
+                methodology_guide: null,
+                ...personalization,
+                qualification_criteria: {},
+            };
+        }
+
+        // 2b. Board has a methodology template
+        if (boardCfg?.methodology_template_id) {
+            const { data: template } = await supabase
+                .from('agent_methodology_templates')
+                .select('*')
+                .eq('id', boardCfg.methodology_template_id)
+                .single();
+
+            if (template) {
+                const personalization = await loadPersonalization(supabase, orgId);
+                return {
+                    base_prompt: template.system_prompt,
+                    agent_role: template.agent_role ?? 'generic',
+                    methodology_guide: buildMethodologyGuide(template.methodology),
+                    ...personalization,
+                    qualification_criteria: {},
+                };
+            }
+        }
+    }
+
+    // 3. Fall back to global agent_configs personalization
+    const personalization = await loadPersonalization(supabase, orgId);
+    return {
+        base_prompt: null, // will use legacy config.system_prompt_override
+        agent_role: 'generic',
+        methodology_guide: buildMethodologyGuide(
+            (personalization.sales_methodology_primary as string | undefined) ?? 'bant'
+        ),
+        ...personalization,
+        qualification_criteria: {},
+    };
+}
+
+async function loadPersonalization(supabase: SupabaseClient, orgId: string): Promise<{
+    tone_section: string | null;
+    business_context: string | null;
+    behavioral_training: string | null;
+    sales_methodology_primary?: string;
+}> {
+    const { data } = await supabase
+        .from('agent_configs')
+        .select('tone_of_voice, business_context_extended, behavioral_training, sales_methodology')
+        .eq('organization_id', orgId)
+        .single();
+
+    if (!data) return { tone_section: null, business_context: null, behavioral_training: null };
+
+    return {
+        tone_section: buildToneSection(data.tone_of_voice),
+        business_context: buildBusinessContextSection(data.business_context_extended),
+        behavioral_training: buildBehavioralSection(data.behavioral_training),
+        sales_methodology_primary: (data.sales_methodology as any)?.primary,
+    };
+}
+
+function buildMethodologyGuide(methodology: string): string | null {
+    const guides: Record<string, string> = {
+        bant: `## METODOLOGIA: BANT\nQualifique: Budget (orçamento disponível?) → Authority (é o decisor?) → Need (qual a dor real?) → Timeline (qual o prazo?). Leads sem Budget + Authority → nurturing.`,
+        spin: `## METODOLOGIA: SPIN Selling\nConduz por 4 perguntas: Situação (contexto atual) → Problema (dores latentes) → Implicação (custo de não resolver) → Necessidade de Solução (lead verbaliza o benefício desejado). O lead que verbaliza a necessidade está pronto para a proposta.`,
+        meddic: `## METODOLOGIA: MEDDIC\nMapeie: Metrics (ROI esperado) → Economic Buyer (quem aprova?) → Decision Criteria (critérios de escolha) → Decision Process (como compram?) → Identify Pain (dor crítica) → Champion (defensor interno?).`,
+        gpct: `## METODOLOGIA: GPCT\nAlinhe: Goals (metas numéricas) → Plans (estratégias tentadas) → Challenges (o que impede) → Timeline (quando precisam dos resultados). Só avance se a solução se encaixa nas metas declaradas.`,
+        flavio_augusto: `## METODOLOGIA: Flávio Augusto (Wiser)\nPrincípios: CAC Zero (reative antes de buscar novos) → Enriquecimento mútuo (venda só é boa se for boa pro cliente) → Timing (leads que disseram não antes podem dizer sim hoje) → Velocidade de execução → Referências (todo cliente satisfeito gera novos clientes).`,
+        neurovendas: `## METODOLOGIA: Neurovendas\nVenda para o cérebro reptiliano: Contraste (antes/depois vívido) → Abertura/Fechamento impactantes → Imagens mentais e metáforas → Prova social → Urgência real → Espelhe a linguagem do lead para rapport subliminar.`,
+        consultivo: `## METODOLOGIA: Venda Consultiva\nPositione-se como especialista: mais perguntas que afirmações → entenda profundamente antes de propor → apresente solução como consequência lógica das necessidades levantadas → seja honesto se a solução não for ideal.`,
+        hybrid: `## METODOLOGIA: Híbrida\nTopo: SPIN (revelar necessidade) → Meio: BANT + Flávio Augusto (qualificação + timing) → Fundo: Neurovendas (ativação de decisão).`,
+    };
+    return guides[methodology] ?? null;
+}
+
+function buildToneSection(toneData: any): string | null {
+    if (!toneData) return null;
+    const parts: string[] = [`\n## TOM DE VOZ: ${toneData.preset ?? 'profissional'}`];
+    const ls = toneData.language_style;
+    if (ls) {
+        const attrs = [
+            ls.formality && `formalidade: ${ls.formality}`,
+            ls.energy && `energia: ${ls.energy}`,
+            ls.empathy_level && `empatia: ${ls.empathy_level}`,
+            ls.use_emojis !== undefined && `emojis: ${ls.use_emojis ? 'sim (com moderação)' : 'não usar'}`,
+        ].filter(Boolean);
+        if (attrs.length) parts.push(`Estilo: ${attrs.join(' | ')}`);
+    }
+    if (toneData.words_to_use?.length) {
+        parts.push(`Palavras recomendadas: ${toneData.words_to_use.slice(0, 8).join(', ')}`);
+    }
+    if (toneData.words_to_avoid?.length) {
+        parts.push(`Palavras PROIBIDAS: ${toneData.words_to_avoid.slice(0, 8).join(', ')}`);
+    }
+    if (toneData.few_shot_examples?.length) {
+        parts.push('\nExemplos de tom:');
+        toneData.few_shot_examples.slice(0, 2).forEach((ex: any) => {
+            parts.push(`Lead: "${ex.user_message}"\nAgente: "${ex.agent_response}"`);
+        });
+    }
+    return parts.join('\n');
+}
+
+function buildBusinessContextSection(ctx: any): string | null {
+    if (!ctx) return null;
+    const parts: string[] = ['\n## CONTEXTO DO NEGÓCIO'];
+    if (ctx.key_products_services?.length) {
+        parts.push('Produtos/Serviços:');
+        ctx.key_products_services.slice(0, 4).forEach((p: any) => {
+            parts.push(`- ${p.name}${p.price_range ? ` (${p.price_range})` : ''}: ${p.description}`);
+        });
+    }
+    if (ctx.unique_value_propositions?.length) {
+        parts.push(`Diferenciais: ${ctx.unique_value_propositions.join(' | ')}`);
+    }
+    if (ctx.important_rules?.length) {
+        parts.push('Regras importantes:');
+        ctx.important_rules.forEach((r: string) => parts.push(`- ⚠️ ${r}`));
+    }
+    return parts.join('\n');
+}
+
+function buildBehavioralSection(bt: any): string | null {
+    if (!bt) return null;
+    const parts: string[] = ['\n## DIRETRIZES COMPORTAMENTAIS'];
+    if (bt.do_list?.length) {
+        parts.push('SEMPRE: ' + bt.do_list.slice(0, 5).map((x: string) => `✅ ${x}`).join(' | '));
+    }
+    if (bt.dont_list?.length) {
+        parts.push('NUNCA: ' + bt.dont_list.slice(0, 5).map((x: string) => `❌ ${x}`).join(' | '));
+    }
+    if (bt.escalation_triggers?.length) {
+        parts.push('Transferir para humano se: ' + bt.escalation_triggers.slice(0, 4).join(' | '));
+    }
+    return parts.join('\n');
+}
+
+// ============================================
+// Helper: Compose system prompt (Phase 5 enhanced)
 // ============================================
 
 async function composeSystemPrompt(
@@ -235,12 +428,19 @@ async function composeSystemPrompt(
     orgId: string,
     config: AgentConfig,
     conversation: Conversation,
-    knowledgeContext: string | null
+    knowledgeContext: string | null,
+    resolved: ResolvedMethodology
 ): Promise<string> {
     const parts: string[] = [];
 
-    // 1. Base identity prompt
-    parts.push(`Você é ${config.agent_name}, o assistente de atendimento inteligente.
+    // 1. Base prompt — resolved hierarchy wins over legacy override
+    const basePrompt = resolved.base_prompt ?? config.system_prompt_override;
+
+    if (basePrompt) {
+        parts.push(basePrompt);
+    } else {
+        // Fallback base identity
+        parts.push(`Você é ${config.agent_name}, o assistente de atendimento inteligente.
 
 ## REGRAS DE OURO
 1. NUNCA invente informações. Se não sabe, diga que vai verificar ou transfira para um humano.
@@ -251,8 +451,29 @@ async function composeSystemPrompt(
 6. Respostas concisas (máximo 3 parágrafos). WhatsApp não é email.
 7. Emojis com moderação — 1-2 por mensagem.
 8. Responda em português brasileiro.`);
+    }
 
-    // 2. Vertical context (if verticalizada)
+    // 2. Methodology guide (from resolved config)
+    if (resolved.methodology_guide) {
+        parts.push(resolved.methodology_guide);
+    }
+
+    // 3. Tone of voice
+    if (resolved.tone_section) {
+        parts.push(resolved.tone_section);
+    }
+
+    // 4. Business context (products, UVPs, rules)
+    if (resolved.business_context) {
+        parts.push(resolved.business_context);
+    }
+
+    // 5. Behavioral training (do/don't/escalation)
+    if (resolved.behavioral_training) {
+        parts.push(resolved.behavioral_training);
+    }
+
+    // 6. Vertical context
     const { data: orgData } = await supabase
         .from('organizations')
         .select('business_type')
@@ -271,13 +492,8 @@ async function composeSystemPrompt(
         }
     }
 
-    // 3. Agent-specific override
-    if (config.system_prompt_override) {
-        parts.push(`\n## INSTRUÇÕES ESPECÍFICAS DA EMPRESA\n${config.system_prompt_override}`);
-    }
-
-    // 3.2. Business Profile Prompt Builder (Context about Company/Services/Team)
-    if (config.business_profile && Object.keys(config.business_profile).length > 0) {
+    // 7. Legacy business profile (backwards compat)
+    if (!resolved.business_context && config.business_profile && Object.keys(config.business_profile).length > 0) {
         const { buildBusinessProfilePrompt } = await import('../../../lib/ai/business-profile-prompt.ts');
         const businessPrompt = buildBusinessProfilePrompt(config.business_profile);
         if (businessPrompt) {
@@ -285,17 +501,23 @@ async function composeSystemPrompt(
         }
     }
 
-    // 3.5. Knowledge Base (RAG)
+    // 8. Knowledge Base (RAG)
     if (knowledgeContext) {
         parts.push(`\n## BASE DE CONHECIMENTO\nUse as informações abaixo para responder (se relevante):\n${knowledgeContext}`);
     }
 
-    // 4. Qualification context
+    // 9. Stage-specific qualification criteria (if any)
+    if (Object.keys(resolved.qualification_criteria).length > 0) {
+        const criteria = Object.entries(resolved.qualification_criteria)
+            .map(([k, v]) => `- ${k}: ${JSON.stringify(v)}`)
+            .join('\n');
+        parts.push(`\n## CRITÉRIOS DESTE ESTÁGIO\n${criteria}`);
+    }
+
+    // 10. Qualification context (from config)
     if (config.qualification_fields.length > 0) {
         const collected = conversation.qualification_data ?? {};
-        const pending = config.qualification_fields.filter(
-            (f) => !collected[f.key]
-        );
+        const pending = config.qualification_fields.filter((f) => !collected[f.key]);
 
         if (pending.length > 0) {
             parts.push(`\n## QUALIFICAÇÃO PENDENTE\nColete os seguintes campos naturalmente durante a conversa:\n${pending.map((f) => `- ${f.key}: "${f.question}" ${f.required ? '(obrigatório)' : '(opcional)'}`).join('\n')}`);
@@ -304,7 +526,7 @@ async function composeSystemPrompt(
         }
     }
 
-    // 5. Entity context (linked contact/deal)
+    // 11. Entity context (linked contact/deal)
     if (conversation.contact_id) {
         const { data: contact } = await supabase
             .from('contacts')
@@ -329,12 +551,17 @@ async function composeSystemPrompt(
         }
     }
 
-    // 6. Conversation summary
+    // 12. Agent role footer
+    if (resolved.agent_role && resolved.agent_role !== 'generic') {
+        parts.push(`\n---\n*Papel neste pipeline: **${resolved.agent_role}***`);
+    }
+
+    // 13. Conversation summary
     if (conversation.summary) {
         parts.push(`\n## RESUMO DA CONVERSA ATÉ AQUI\n${conversation.summary}`);
     }
 
-    return parts.join('\n');
+    return parts.join('\n\n').trim();
 }
 
 // ============================================
@@ -505,6 +732,64 @@ ${chatText}`;
 }
 
 // ============================================
+// Helper: Track performance metrics (Aprender mode foundation)
+// ============================================
+
+async function trackConversationMetric(
+    supabase: SupabaseClient,
+    orgId: string,
+    boardId: string | null,
+    stageId: string | null,
+    methodologyUsed: string,
+    messageCount: number
+): Promise<void> {
+    try {
+        const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+        const periodStart = today;
+        const periodEnd = today;
+
+        // Upsert daily metric — increment conversation count
+        const { data: existing } = await supabase
+            .from('agent_performance_metrics')
+            .select('id, conversations_total, avg_messages_to_conversion')
+            .eq('organization_id', orgId)
+            .eq('period_start', periodStart)
+            .eq('period_end', periodEnd)
+            .eq('board_id', boardId ?? null)
+            .maybeSingle();
+
+        if (existing) {
+            const newTotal = (existing.conversations_total ?? 0) + 1;
+            const prevAvg = existing.avg_messages_to_conversion ?? 0;
+            const newAvg = Math.round((prevAvg * (newTotal - 1) + messageCount) / newTotal);
+
+            await supabase
+                .from('agent_performance_metrics')
+                .update({
+                    conversations_total: newTotal,
+                    avg_messages_to_conversion: newAvg,
+                    methodology_used: methodologyUsed,
+                })
+                .eq('id', existing.id);
+        } else {
+            await supabase.from('agent_performance_metrics').insert({
+                organization_id: orgId,
+                board_id: boardId,
+                stage_id: stageId,
+                period_start: periodStart,
+                period_end: periodEnd,
+                conversations_total: 1,
+                avg_messages_to_conversion: messageCount,
+                methodology_used: methodologyUsed,
+            });
+        }
+    } catch (err) {
+        // Non-critical — never throw
+        console.error('Failed to track performance metric:', err);
+    }
+}
+
+// ============================================
 // Main Engine
 // ============================================
 
@@ -575,6 +860,29 @@ serve(async (req: Request) => {
         }
 
         const config = agentConfig as AgentConfig;
+
+        // ── Step 3.5: Resolve stageId/boardId for methodology hierarchy ──
+        // Priority: deal's current stage > config defaults
+        let resolvedStageId: string | null = config.default_stage_id ?? null;
+        let resolvedBoardId: string | null = config.default_board_id ?? null;
+
+        if (conversation.deal_id) {
+            const { data: dealData } = await supabase
+                .from('deals')
+                .select('stage_id, board_id')
+                .eq('id', conversation.deal_id)
+                .single();
+            if (dealData?.stage_id) resolvedStageId = dealData.stage_id;
+            if (dealData?.board_id) resolvedBoardId = dealData.board_id;
+        }
+
+        // Resolve effective methodology (stage > board > global)
+        const resolvedMethodology = await resolveMethodology(
+            supabase,
+            organization_id,
+            resolvedStageId,
+            resolvedBoardId
+        );
 
         // ── Step 4: Check business hours ──
         if (!isWithinBusinessHours(config) && !config.attend_outside_hours) {
@@ -699,13 +1007,14 @@ serve(async (req: Request) => {
         // ── Step 6.5: Fetch Knowledge Base (RAG) ──
         const knowledgeContext = await getKnowledgeContext(supabase, organization_id, finalMessageContent);
 
-        // ── Step 7: Compose system prompt ──
+        // ── Step 7: Compose system prompt (Phase 5: hierarchy-aware) ──
         const systemPrompt = await composeSystemPrompt(
             supabase,
             organization_id,
             config,
             conversation,
-            knowledgeContext
+            knowledgeContext,
+            resolvedMethodology
         );
 
         // ── Step 8: Check AI quota ──
@@ -805,6 +1114,16 @@ serve(async (req: Request) => {
 
         // ── Step 13: Post-processing (Summary) ──
         await postProcess(supabase, config, conversation, history, aiResponse);
+
+        // ── Step 13.5: Track performance metric for Aprender mode ──
+        await trackConversationMetric(
+            supabase,
+            organization_id,
+            resolvedBoardId,
+            resolvedStageId,
+            resolvedMethodology.agent_role,
+            history.length + 1
+        );
 
         // ── Step 14: Update conversation timestamp and unlock ──
         await supabase

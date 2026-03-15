@@ -1,8 +1,8 @@
 # PROJECT_REGISTRY.md — NossoCRM (IntelliX.AI_CRM)
 
 > **Documento Vivo:** Atualizado a cada modificação significativa.
-> **Última Atualização:** 03 de Março de 2026 (08:50 BRT)
-> **Versão do Registro:** 1.3
+> **Última Atualização:** 14 de Março de 2026 (21:00 BRT)
+> **Versão do Registro:** 2.2
 
 ---
 
@@ -125,6 +125,7 @@ IntelliX.AI_CRM/
 | **Bulk Operations** | P1 | ✅ Completo | API route `/api/deals/bulk` (6 ops: move/assign/tag/delete/export_csv), hooks (6), BulkActionsBar UI flutuante |
 | **Deal Templates** | P2 | ✅ Completo | Service (`deal-templates.ts`, 200 loc), hooks (4), API route, DealTemplatesManager UI em Settings |
 | **Quick Reports** | P2 | ✅ Completo | QuickReportsPanel presente em Settings tab |
+| **Email Campaigns** | P1 | ✅ Completo | Migration (3 tabelas), service (395 loc), 5 API routes, 2 hooks, CampaignsManager UI em Settings, envio via Resend, segmentação multi-critério |
 | **MCP OAuth** | P2 | ⏳ Planejado | — |
 | **Contact Enrichment** | P3 | ✅ Completo | Service (`contact-enrichment.ts`, 179 loc), enrichContact + batch, AI-based inference |
 | **Follow-ups/Nurturing** | P1 | ✅ Completo | Migration (4 tabelas), services (810 loc), 3 API routes, 10 hooks, FollowupsManager UI em Settings |
@@ -159,6 +160,29 @@ IntelliX.AI_CRM/
 | **8 — Media + Extras** | ✅ Completo | Media handler, resumo, métricas |
 | **9 — Polish + QA** | ✅ Completo | Testes, edge cases |
 
+### 4.4b NossoAgent Inbox — Chat de Atendimento Omnichannel (branch `feature/nossoagent`)
+
+| Componente | Status | Arquivo | Descrição |
+|---|---|---|---|
+| **NossoAgentInboxPage** | ✅ Completo | `features/nossoagent/NossoAgentInboxPage.tsx` | Inbox estilo Chatwoot, 3 painéis (lista / chat / contexto CRM), dados reais Supabase Realtime, filtros por status com contadores, busca, handover IA↔Humano, notas internas, auto-scroll |
+| **Rota `/atendimento`** | ✅ Completo | `app/(protected)/atendimento/page.tsx` | Dynamic import do Inbox |
+| **Nav item** | ✅ Completo | `components/Layout.tsx` | Ícone `MessageCircle` + item "Atendimento" na sidebar |
+| **Prefetch** | ✅ Completo | `lib/prefetch.ts` | `atendimento` registrado |
+
+### 4.5 Multi-Agent Sales Methodology System (branch `feature/nossoagent`)
+
+> **PRD:** `NossoCRM_PRD_MultiAgent_SalesMethodology.md` (v2.0)
+> **Roadmap:** 6 fases · 23 agentes · 4 verticais · BANT + SPIN + MEDDIC + GPCT + Flávio Augusto + Neurovendas
+
+| Fase | Status | Arquivos Principais |
+|---|---|---|
+| **1 — Migration + Types** | ✅ Completo | `20260313000001_agent_methodology_system.sql` (4 tabelas novas + ALTER agent_configs + 8 templates seed), `types/agent.ts` (20+ novos tipos: SalesMethodology, ToneOfVoice, KnowledgeBaseConfig, AgentBoardConfig, etc.) |
+| **2 — Service Layer + API** | ✅ Completo | `lib/supabase/agent-methodology.ts` (service CRUD, resolveAgentConfig), `hooks/useAgentMethodology.ts` (10 hooks SSOT), 5 API routes: `methodology-templates`, `board-config`, `stage-config`, `personalization`, `generate-prompt` |
+| **3 — Prompt Builder v2** | ✅ Completo | `lib/ai/prompt-builder.ts` (buildPersonalizedSystemPrompt) — injeta tone_of_voice, sales_methodology, behavioral_training, business_context_extended, follow_up_config, kb_config no prompt final |
+| **4 — UI: 4 novas abas** | ✅ Completo | `AgentConfigPage.tsx` expandido: +4 abas IA Avançada (Metodologia, Personalidade, Conhecimento, Treinamento). 4 novos componentes: `AgentMethodologyTab`, `AgentPersonalityTab`, `AgentKnowledgeTab`, `AgentTrainingTab` |
+| **5 — Agent Engine Enhancement** | ✅ Completo | `supabase/functions/agent-engine/index.ts` — Step 3.5 resolve stageId/boardId do deal em runtime; `resolveMethodology()` (stage_configs > board_configs > global); `loadPersonalization()` (tone, business context, behavioral training); `buildMethodologyGuide()` (BANT/SPIN/MEDDIC/GPCT/FA/Neurovendas/Consultivo/Híbrido); `composeSystemPrompt()` refatorado com 13 seções ordenadas |
+| **6 — Vertical Packs + Aprender** | ✅ Completo | `app/api/agent/activate-vertical-pack/route.ts` (API de ativação por vertical com defaults de tom/regras), `features/conversations/components/VerticalPackWizard.tsx` (wizard 3-step modal), `supabase/migrations/20260314000002_agent_ab_tests.sql` (tabela agent_ab_tests + RLS), `app/api/agent/ab-tests/route.ts` (GET/POST/PATCH status), `features/conversations/components/AgentLearnModePanel.tsx` (painel A/B testing do modo Aprender). Agent Engine: `trackConversationMetric()` Step 13.5 coleta métricas diárias de metodologia. |
+
 ---
 
 ## 5. Migrations (Histórico Cronológico)
@@ -173,6 +197,9 @@ IntelliX.AI_CRM/
 | 6 | `20260224000002_seed_vertical_configs.sql` | 24/02/2026 | Seed: 4 verticais com nomenclaturas, campos, pipelines, AI context, widgets, feature flags |
 | 7 | `20260224000003_setup_vertical_cron_jobs.sql` | 25/02/2026 | 9 pg_cron jobs para automações verticais (medical 3, dental 3, real estate 3) via pg_net → Edge Function |
 | 8 | `20260225000001_create_agent_tables.sql` | 25/02/2026 | Tabelas `agent_configs`, `conversations`, `messages`, `agent_tools_log` + RLS + 8 índices + Realtime + triggers `updated_at` |
+| 9 | `20260314000001_email_campaigns.sql` | 14/03/2026 | Tabelas `email_campaigns`, `email_templates`, `email_campaign_sends` + ENUMs + descadastramento por token |
+| 10 | `20260313000001_agent_methodology_system.sql` | 13/03/2026 | ALTER `agent_configs` (+7 campos JSON), 4 novas tabelas (`agent_methodology_templates`, `agent_board_configs`, `agent_stage_configs`, `agent_performance_metrics`), seed 8 templates de metodologias |
+| 11 | `20260314000002_agent_ab_tests.sql` | 14/03/2026 | Tabela `agent_ab_tests` — A/B testing de metodologias (Aprender mode). Variantes A/B com split de tráfego, métricas de conversão, winner + confidence, RLS + trigger updated_at |
 
 ---
 
@@ -192,6 +219,16 @@ IntelliX.AI_CRM/
 | `/api/vertical/activate` | POST | Verticalização | Ativa vertical: seta business_type + cria pipeline |
 | `/api/dashboard/vertical-widgets` | GET | Dashboard | Dados dos widgets verticais por org |
 | `/api/properties` | GET/POST | Imobiliárias | CRUD imóveis com 8 filtros (status, tipo, valor, quartos, etc.) |
+| `/api/campaigns` | GET/POST | Email Campaigns | Lista e cria campanhas de email |
+| `/api/campaigns/[id]/send` | POST | Email Campaigns | Dispara campanha (imediato, rate limited 50ms/msg) |
+| `/api/campaigns/templates` | GET/POST | Email Campaigns | CRUD de templates + geração via IA |
+| `/api/campaigns/segment-preview` | POST | Email Campaigns | Preview de destinatários sem disparar |
+| `/api/unsubscribe/[token]` | GET | Email Campaigns | Descadastramento (pública, sem auth) |
+| `/api/agent/methodology-templates` | GET | Multi-Agent | Lista templates de metodologia por vertical/role |
+| `/api/agent/board-config` | GET/POST | Multi-Agent | Configuração de agente por board (get one, list all, upsert) |
+| `/api/agent/stage-config` | GET/POST | Multi-Agent | Configuração de agente por estágio (get by stageId, list by boardId, upsert) |
+| `/api/agent/personalization` | GET/POST | Multi-Agent | Leitura/atualização bulk de personalização global (7 seções) |
+| `/api/agent/generate-prompt` | POST | Multi-Agent | Gera system prompt final resolvendo hierarquia stage>board>global + personalization |
 | `/api/webhooks/*` | POST | Integrações | Endpoints inbound de webhooks |
 | `/api/public/*` | CRUD | API Pública | API pública documentada |
 
@@ -215,6 +252,13 @@ IntelliX.AI_CRM/
 | `useResponsiveMode()` | `hooks/useResponsiveMode.ts` | Detecção de breakpoints |
 | `useSpeechRecognition()` | `hooks/useSpeechRecognition.ts` | Reconhecimento de voz para IA |
 | `useSystemNotifications()` | `hooks/useSystemNotifications.ts` | Notificações nativas do browser |
+| `useMethodologyTemplates()` | `hooks/useAgentMethodology.ts` | Lista templates de metodologia (10min stale) |
+| `useAgentBoardConfig(boardId)` | `hooks/useAgentMethodology.ts` | Configuração de agente por board |
+| `useUpsertAgentBoardConfig()` | `hooks/useAgentMethodology.ts` | Mutation: upsert config de board (SSOT) |
+| `useAgentStageConfigs(boardId)` | `hooks/useAgentMethodology.ts` | Lista configs de estágios por board |
+| `useUpsertAgentStageConfig()` | `hooks/useAgentMethodology.ts` | Mutation: upsert config de estágio (SSOT) |
+| `useAgentPersonalization()` | `hooks/useAgentMethodology.ts` | Config de personalização global (7 seções) |
+| `useUpdateAgentPersonalization()` | `hooks/useAgentMethodology.ts` | Mutation: atualiza personalização bulk (SSOT) |
 
 ---
 
@@ -240,10 +284,160 @@ IntelliX.AI_CRM/
 | `NossoCRM_PRD_NossoAgent_IA_Nativo.md` | IA nativa avançada (NossoAgent) — 9 fases, ~11.5 semanas | 🟡 Próximo: implementação |
 | `NossoCRM_PRD_NossoAgent_Followups_Nurturing.md` | Follow-ups automatizados + nurturing — 7 fases, ~9.5 semanas | ⏳ Após NossoAgent Fases 1-3 |
 | `NossoCRM_PRD_NossoAgent_KnowledgeBase_RAG.md` | Knowledge Base + RAG + Catálogo — 6 fases, ~7.5 semanas | ⏳ Após NossoAgent Fases 1-3 |
+| `NossoCRM_PRD_MultiAgent_SalesMethodology.md` | Multi-Agent Methodology System — 23 agentes especializados, 4 verticais, 6 fases, ~10 semanas | 🔄 Fases 1-4 concluídas, Fase 5 planejada |
 
 ---
 
 ## 10. Histórico de Alterações (Changelog)
+
+### 14/03/2026 (v2.2) — Multi-Agent Methodology System — Phase 6: Vertical Packs + Aprender Mode
+
+- **Branch:** `feature/nossoagent`
+- **O que mudou:**
+  - **Wizard de Ativação de Vertical Packs:**
+    - `app/api/agent/activate-vertical-pack/route.ts`: POST que aceita `vertical` + `boardIds` + `overwrite`. Para cada board, busca o template mais adequado da vertical e faz upsert de `agent_board_config`. Também aplica defaults de personalização (tom, regras de negócio, listas SEMPRE/NUNCA, escalação) no `agent_configs` global da org. Retorna `boards_configured[]` com status (configured/skipped_existing) por board.
+    - `features/conversations/components/VerticalPackWizard.tsx`: Modal wizard 3-step. Step 1: seleção de vertical com cards visuais (4 verticais, cor, emoji, lista de agentes configurados). Step 2: seleção de pipelines com toggle "Selecionar todos" e checkbox "Sobrescrever". Step 3: tela de confirmação com resumo. Tela "Done" com próximos passos sugeridos. Integrado via botão "✨ Ativar Pack" no `AgentMethodologyTab`.
+  - **Modo Aprender — A/B Testing Infrastructure:**
+    - `supabase/migrations/20260314000002_agent_ab_tests.sql`: Tabela `agent_ab_tests` com variantes A/B (metodologia, label, split de tráfego 1-99%), contadores de conversas/conversões/avg_msgs por variante, campos `winner` e `confidence_pct`, status check constraint, RLS + trigger `updated_at`.
+    - `app/api/agent/ab-tests/route.ts`: GET (lista testes por org), POST (cria novo teste), PATCH (atualiza status: start/pause/stop com `started_at`/`ended_at` automáticos).
+    - `features/conversations/components/AgentLearnModePanel.tsx`: Painel completo de A/B testing. Lista testes com status badge (draft/running/paused/completed), tabela de métricas lado a lado (Variante A vs B: conversas, taxa de conversão, msgs médias), botões de ação por status, formulário de criação de novo teste (nome, descrição, metodologias A/B, split de tráfego). Renderizado no `AgentMethodologyTab` quando modo "Aprender" está ativo.
+  - **Agent Engine — Coleta de Métricas (Step 13.5):**
+    - `trackConversationMetric()`: helper que faz upsert diário em `agent_performance_metrics` — incrementa `conversations_total` e recalcula `avg_messages_to_conversion` com média ponderada. Non-critical (nunca lança exceção). Chamado após Step 13 (post-processing) em cada resposta do engine.
+- **Arquivos criados/modificados:**
+  - `app/api/agent/activate-vertical-pack/route.ts` (novo)
+  - `features/conversations/components/VerticalPackWizard.tsx` (novo)
+  - `features/conversations/components/AgentMethodologyTab.tsx` (modificado — wizard + learn panel integrados)
+  - `supabase/migrations/20260314000002_agent_ab_tests.sql` (novo)
+  - `app/api/agent/ab-tests/route.ts` (novo)
+  - `features/conversations/components/AgentLearnModePanel.tsx` (novo)
+  - `supabase/functions/agent-engine/index.ts` (modificado — Step 13.5 + `trackConversationMetric`)
+- **Status Multi-Agent Methodology System:** ✅ **TODAS AS 6 FASES CONCLUÍDAS**
+
+---
+
+### 14/03/2026 (v2.1) — Multi-Agent Methodology System — Phase 5: Agent Engine Enhancement
+
+- **Branch:** `feature/nossoagent`
+- **O que mudou:**
+  - `supabase/functions/agent-engine/index.ts` refatorado com resolução de metodologia em runtime:
+    - **Step 3.5 (novo):** Após carregar `agentConfig`, resolve `stageId`/`boardId` efetivos — tenta o deal vinculado à conversa (`deals.stage_id`, `deals.board_id`), cai para `config.default_stage_id`/`default_board_id`.
+    - **`resolveMethodology()`** — implementa a hierarquia completa:
+      1. `agent_stage_configs` — se tem `system_prompt_override`, usa diretamente
+      2. `agent_board_configs` — se tem override, usa; se tem `methodology_template_id`, busca template
+      3. Fallback global com metodologia da `agent_configs.sales_methodology`
+    - **`loadPersonalization()`** — carrega 3 seções de `agent_configs`: `tone_of_voice`, `business_context_extended`, `behavioral_training`
+    - **`buildMethodologyGuide()`** — guias inline de 8 metodologias: BANT, SPIN, MEDDIC, GPCT, Flávio Augusto, Neurovendas, Consultivo, Híbrido
+    - **`buildToneSection()`, `buildBusinessContextSection()`, `buildBehavioralSection()`** — builders para cada dimensão de personalização
+    - **`composeSystemPrompt()`** expandido de 6 para 13 seções ordenadas: base_prompt → methodology_guide → tone → business_context → behavioral_training → vertical_context → legacy_business_profile → knowledge_base → qualification_criteria → qualification_fields → contact/deal context → agent_role footer → conversation_summary
+- **Arquivos modificados:**
+  - `supabase/functions/agent-engine/index.ts` (+~250 linhas)
+
+---
+
+### 14/03/2026 (v2.0) — Multi-Agent Methodology System — Phase 4: UI 4 novas abas IA Avançada
+
+- **Branch:** `feature/nossoagent`
+- **O que mudou:**
+  - `AgentConfigPage.tsx` expandido de 6 para 10 abas. As 4 novas abas ficam em grupo visual destacado como "✨ IA Avançada" no header de tabs:
+    - **Metodologia** (`AgentMethodologyTab`): Seletor de modo (Automático / Templates / Aprender / Avançado) com 4 cards visuais. No modo Template: lista de templates por vertical/role. No modo Avançado: seletor de metodologia primária (BANT, SPIN, MEDDIC, GPCT, FA, Neurovendas, Consultiva, Híbrida, Custom) + metodologias secundárias em chips + campo de abordagem customizada.
+    - **Personalidade** (`AgentPersonalityTab`): Persona (nome, papel, estilo). Tom de voz com 7 presets visuais (Formal, Profissional, Consultivo, Empático, Casual, Técnico, Inspirador). Language style (formalidade, energia, empatia, toggle emojis). Palavras para usar / evitar (chip input). Exemplos de conversa few-shot (add/remove).
+    - **Conhecimento** (`AgentKnowledgeTab`): Toggle "pesquisar antes de responder". Slider de threshold de relevância (0.3–0.95). Select de max resultados. CRUD de fontes de conhecimento (nome, tipo, referência, descrição, toggle ativo).
+    - **Treinamento** (`AgentTrainingTab`): Lista SEMPRE fazer (verde). Lista NUNCA fazer (vermelho). Gatilhos de escalação para humano (âmbar). Abordagens de abertura (violeta). Script CAC Zero para reativação (Flávio Augusto).
+  - Cada aba tem save button próprio com estado `isDirty` — save independente via `useUpdateAgentPersonalization()` SSOT.
+  - Todos os 4 componentes criados em `features/conversations/components/`.
+- **Arquivos criados/modificados:**
+  - `features/conversations/AgentConfigPage.tsx` (modificado — +4 tabs, novo TabId union)
+  - `features/conversations/components/AgentMethodologyTab.tsx` (novo)
+  - `features/conversations/components/AgentPersonalityTab.tsx` (novo)
+  - `features/conversations/components/AgentKnowledgeTab.tsx` (novo)
+  - `features/conversations/components/AgentTrainingTab.tsx` (novo)
+
+---
+
+### 14/03/2026 (v1.9) — Multi-Agent Methodology System — Phase 2 + Phase 3
+
+- **Branch:** `feature/nossoagent`
+- **O que mudou:**
+  - **Fase 2 — Service Layer + API** concluída:
+    - `lib/supabase/agent-methodology.ts`: `PersonalizationPayload` exportado (era privado)
+    - `app/api/agent/stage-config/route.ts`: GET (por stageId ou boardId) + POST upsert
+    - `app/api/agent/personalization/route.ts`: GET global personalization + POST bulk update (com sanitização de keys)
+    - `app/api/agent/generate-prompt/route.ts`: POST que resolve hierarquia (stage > board > global), enriquece com personalização e retorna/salva o prompt final
+  - **Fase 3 — Prompt Builder v2** concluída:
+    - `lib/ai/prompt-builder.ts` (novo): `buildPersonalizedSystemPrompt()` monta o system prompt injetando todas as 7 seções de personalização: persona, tom de voz (com few-shot examples), metodologia(s) de vendas (guias completos), contexto de negócio, treinamento comportamental, KB config e follow-up config
+    - Guias inline para: BANT, SPIN, MEDDIC, GPCT, Flávio Augusto, Neurovendas, Consultivo, Híbrido
+    - Suporte a metodologia primária + secundárias + abordagem customizada
+
+---
+
+### 13/03/2026 (v2) — Multi-Agent Methodology System — PRD + Migration + Tipos
+- **Branch:** `feature/nossoagent`
+- **O que mudou:**
+  - PRD `NossoCRM_PRD_MultiAgent_SalesMethodology.md` reescrito na v2.0 com:
+    - Flávio Augusto adicionado em Generic CRM e Imobiliária (presente em todas as verticais que têm vendas)
+    - Guia completo de 6 metodologias: BANT, SPIN, MEDDIC, GPCT, Flávio Augusto, Neurovendas — cada uma com explicação concisa, quando usar, eficiência e aplicação no CRM
+    - System prompts completos para 9 agentes: SDRAgent, AECloserAgent, ReactivationAgent, ReceptionAgent (médica), ConversionAgent, NoShowRecoveryAgent, OrthoCloserAgent, LeadQualificationAgent, NegotiationAgent
+    - Estrutura completa `AgentPersonalizationConfig` com 7 dimensões: Persona, Tom de Voz, Metodologia, RAG/Knowledge Base, Contexto do Negócio, Treinamento Comportamental, Follow-up
+    - 4 modos de configuração UI: Automático, Templates, Aprender, Avançado
+  - Migration `20260313000001_agent_methodology_system.sql`:
+    - 7 novos campos JSON em `agent_configs`: persona, tone_of_voice, sales_methodology, knowledge_base_config, business_context_extended, behavioral_training, follow_up_config
+    - 4 novas tabelas: agent_methodology_templates, agent_board_configs, agent_stage_configs, agent_performance_metrics
+    - RLS em todas as tabelas + índices
+    - Seed: 8 templates pré-configurados (SDR, Closer, Reactivation, Medical, Dental, Real Estate)
+  - `types/agent.ts` expandido com 20+ novos tipos TypeScript: SalesMethodology, ToneOfVoice, KnowledgeBaseConfig, BusinessContextExtended, BehavioralTraining, FollowUpConfig, AgentMethodologyTemplate, AgentBoardConfig, AgentStageConfig, AgentMode
+
+---
+
+### 13/03/2026 — Email Campaigns + NossoAgent Inbox (Chat de Atendimento)
+- **Branch:** `feature/nossoagent` (continuação)
+- **O que mudou:**
+
+  **Módulo Email Campaigns (v1.0):**
+  - Migration: `20260314000001_email_campaigns.sql` — 3 tabelas: `email_campaigns`, `email_templates`, `email_campaign_sends`. ENUMs `campaign_status`, `campaign_segment_type`. Suporte a descadastramento com token.
+  - Service: `lib/supabase/email-campaigns.ts` (395 loc) — CRUD de campanhas, templates, envio via Resend (fetch nativo), segmentação por tag/lifecycle/vertical/custom, preview de segmento.
+  - API Routes: `/api/campaigns` (GET/POST), `/api/campaigns/[id]/send` (POST — disparo com rate limiting 50ms/msg), `/api/campaigns/templates` (GET/POST), `/api/campaigns/segment-preview` (POST), `/api/unsubscribe/[token]` (GET público, HTML de confirmação).
+  - Hooks: `features/campaigns/hooks/useCampaigns.ts` (138 loc), `useEmailTemplates.ts` (100 loc) — TanStack Query SSOT, setQueryData.
+  - UI: `features/campaigns/CampaignsManager.tsx` (614 loc) — gerenciador completo: lista de campanhas com métricas, criação/edição de campanha, editor de template, segmentação, disparo imediato ou agendado.
+  - Integração: Aba "Campanhas" adicionada à `SettingsPage.tsx` com lazy import.
+
+  **NossoAgent Inbox — Chat de Atendimento (v1.0):**
+  - `features/nossoagent/NossoAgentInboxPage.tsx` (novo) — Inbox omnichannel estilo Chatwoot com dados reais Supabase Realtime. 3-panel layout: lista de conversas | janela de chat | contexto CRM. Responsive (mobile: 1 painel, tablet: 2 painéis, desktop: 3 painéis).
+  - **Funcionalidades:** filtros por status (Todas / IA Ativa / Aguardando / Humano / Encerradas) com contadores em tempo real; busca por nome/número; handover IA ↔ Humano via `HandoverControls`; envio de mensagens com `role:'human'` pelo atendente; notas internas (`is_internal_note`); auto-scroll em novas mensagens; realtime via `useConversationRealtime` + `useConversationsListRealtime`; painel de contexto CRM (qualificação, sentiment, intent, summary da IA, links para contato e deal).
+  - **Reutilização:** `MessageBubble`, `ConversationContext`, `HandoverControls`, `ChannelBadge` (componentes existentes), todos os hooks existentes.
+  - Rota: `app/(protected)/atendimento/page.tsx` → `/atendimento`
+  - Sidebar: item "Atendimento" com ícone `MessageCircle` adicionado a `components/Layout.tsx`
+  - Prefetch: `atendimento` adicionado a `lib/prefetch.ts`
+
+- **Arquivos criados/modificados:**
+  - `supabase/migrations/20260314000001_email_campaigns.sql` (novo)
+  - `lib/supabase/email-campaigns.ts` (novo)
+  - `app/api/campaigns/route.ts` (novo)
+  - `app/api/campaigns/[id]/send/route.ts` (novo)
+  - `app/api/campaigns/templates/route.ts` (novo)
+  - `app/api/campaigns/segment-preview/route.ts` (novo)
+  - `app/api/unsubscribe/[token]/route.ts` (novo)
+  - `features/campaigns/hooks/useCampaigns.ts` (novo)
+  - `features/campaigns/hooks/useEmailTemplates.ts` (novo)
+  - `features/campaigns/CampaignsManager.tsx` (novo)
+  - `features/settings/SettingsPage.tsx` (modificado — aba Campanhas)
+  - `features/nossoagent/NossoAgentInboxPage.tsx` (novo)
+  - `app/(protected)/atendimento/page.tsx` (novo)
+  - `components/Layout.tsx` (modificado — item Atendimento na nav)
+  - `lib/prefetch.ts` (modificado — rota atendimento)
+
+---
+
+### 10/03/2026 — Polimento, Bugfixes Next.js (Failed to fetch) e RLS Supabase
+- **Branch:** `feature/verticalizacao-multi-nicho` / `feature/nossoagent`
+- **O que mudou:** 
+  - **Módulos Clínicos:** Criação e injeção dinâmica de `PatientRecordView`, `PatientTimeline`, `TreatmentPlanEditor`, e `DentalChartSimple` no deal cockpit (`FocusContextPanel.tsx`). Correção de tipagem rigorosa de TypeScript e erros de comparação literals (`medical_clinic` vs `clinica_medica`).
+  - **Módulo Imobiliário:** Melhorias visuais premium em `PropertyCard` e `PropertyMatchList`. Criação de `PropertyMatchDashboard` e `VisitScheduler` com injeção dinâmica baseada na vertical selecionada.
+  - **Omnichannel Inbox:** Estruturação da UX do Inbox Unificado (`AgentInbox`), `HandoverControls` para alternar entre Atendimento Humano e Bot, e `ChannelBadge` para visualização de canais de comunicação.
+  - **Bugfixes Estruturais:** 
+      - Correção do Typecheck que causava quebra e página HTML "Failed to fetch" no build do Next.js Turbopack. Limpeza de cache `.next` bloqueado.
+      - Criação de `useOrgBusinessType` hook para acesso assíncrono universal à Vertical da Org no Client Side.
+      - Reparo na API `/api/vertical/activate` implementando o `createAdminClient` via Service Role (bypassing the Row Level Security - RLS) permitindo que o usuário altere seu nicho corretamente no onboarding gerando reflexo instantâneo no Dashboard.
+- **Arquivos:** 9 novos componentes criados, `FocusContextPanel.tsx`, `TreatmentPlanContainer.tsx`, `PatientRecordContainer.tsx` e `DashboardPage` modificados para uso de hooks dinâmicos. RLS admin client injeção em routes da API.
 
 ### 25/02/2026 — Verticalização Multi-Nicho Fases 5-8
 - **Branch:** `feature/verticalizacao-multi-nicho`
@@ -352,9 +546,32 @@ npm run test:run     # Testes single run
 | Segurança IA - Prompt Injection / Jailbreak | `agent-engine` | ✅ Completo | 30 testes: 15 payloads maliciosos bloqueados, 10 mensagens safe passam, edge cases (case, embedding, empty). |
 | Multimodal - Fallbacks (Vision/Audio) | `agent-engine` | ✅ Completo | 9 testes: fallbacks de áudio (download fail, whisper error), imagens com/sem legenda, document/video. |
 | UI/UX - Chunking & Delay | `frontend` | ✅ Completo | 14 testes: chunkAIResponse (empty, short, paragraphs, long), calculateTypingDelay (bounds, proportional), buildHumanizedPipeline (first-chunk reduction). |
-| Job - Offline Summarization Cron | `pg_cron` | ✅ Completo | 12 testes: formatação de transcript, composição de prompt (com/sem resumo anterior), janela de 2h, skip de conversas vazias. |
+### Job - Offline Summarization Cron | `pg_cron` | ✅ Completo | 12 testes: formatação de transcript, composição de prompt (com/sem resumo anterior), janela de 2h, skip de conversas vazias. |
 
 *Mais casos serão adicionados conforme progresso do testing.*
+
+---
+
+## 15. Deep Analysis: Verticalização UI & Omnichannel Agent
+
+> **Data da Auditoria:** 10 de Março de 2026.
+> **Contexto:** Análise de CRMs top de mercado (Simples Dental, Clinicorp, ImobiBrasil) vs nosso CRM atual.
+
+**Descobertas Clínicas & Odontológicas:**
+Nós criamos a fundação de dados (EAV), mas precisamos evoluir a **UI** para corresponder aos CRMs líderes. Eles possuem:
+1. **Prontuário Eletrônico Dedicado:** (Substitui a view de contatos genérica). Anamnese digital, histórico clínico isolado, prescrições.
+2. **Odontograma / Tratamentos:** Controle visual da arcada dentária, sessões realizadas vs. aprovadas por orçamento.
+*Plano:* Injetar dinamicamente os componentes `PatientRecordView` e `TreatmentPlanEditor` via hook `useVerticalConfig`.
+
+**Descobertas Imobiliárias:**
+1. **Match Inteligente Aprimorado:** Dashboard focando no cruzamento automático de Perfis (Leads) com Imóveis Ativos (`vertical_properties`).
+2. **Funil Logístico:** Controle de chaves e agendamento de visitas de forma mais proeminente que negociações estáticas.
+
+**NossoAgent - Omnichannel & Handover:**
+O AI Master precisa ser preparado para escala multi-canal (WhatsApp, Instagram, etc) e **não deve operar no escuro**.
+1. **Inbox Unificado:** Painel estilo Chatwoot para acompanhamento em tempo real das conversas do NossoAgent com os leads.
+2. **Handover de Atendimento:** Funcionalidade crucial para o corretor/atendente pausar o Agente IA (👤 assumir o controle) ou devolver o lead para o fluxo automático (🤖).
+3. Estas regras arquiteturais serão incluídas no PRD do Agente e no roadmap de desenvolvimento do CRM.
 
 ---
 
