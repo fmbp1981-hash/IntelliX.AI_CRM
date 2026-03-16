@@ -1,8 +1,8 @@
 # PROJECT_REGISTRY.md — NossoCRM (IntelliX.AI_CRM)
 
 > **Documento Vivo:** Atualizado a cada modificação significativa.
-> **Última Atualização:** 15 de Março de 2026 (22:00 BRT)
-> **Versão do Registro:** 2.3
+> **Última Atualização:** 15 de Março de 2026 (23:30 BRT)
+> **Versão do Registro:** 2.4
 
 ---
 
@@ -45,7 +45,7 @@ Todas mutações iteram sobre mesma chave global do TanStack Query (ex: `[...que
 IntelliX.AI_CRM/
 ├── app/                    # Rotas Next.js (App Router)
 │   ├── (protected)/        #   Rotas autenticadas (dashboard, pipeline, inbox, etc.)
-│   ├── api/                #   API Routes (ai/, contacts/, deals/, vertical/, webhooks/, properties/, dashboard/)
+│   ├── api/                #   API Routes (ai/, agent/, campaigns/, client-radar/, contacts/, conversations/, deals/, followups/, notifications/, properties/, sequences/, vertical/, webhooks/)
 │   ├── auth/               #   Callback de autenticação
 │   ├── install/            #   Wizard de instalação
 │   ├── login/              #   Tela de login
@@ -54,20 +54,26 @@ IntelliX.AI_CRM/
 ├── context/                # Contextos React (auth, sidebar, pipeline, etc.)
 ├── features/               # Módulos por domínio de negócio
 │   ├── activities/         #   Atividades (tarefas, reuniões, chamadas)
+│   ├── agent-chat/         #   Chat interno com IA (UIChat)
 │   ├── ai-hub/             #   Central de IA
 │   ├── boards/             #   Pipeline Kanban (maior módulo)
-│   ├── contacts/           #   Gestão de contatos
+│   ├── campaigns/          #   Email Campaigns (CampaignsManager, hooks)
 │   ├── client-radar/       #   Radar de Clientes (aniversários, VIPs, datas comemorativas, automação)
+│   ├── contacts/           #   Gestão de contatos
+│   ├── conversations/      #   NossoAgent — Config UI (AgentConfigPage + 10 abas)
 │   ├── dashboard/          #   Dashboard e métricas + vertical widgets
 │   ├── deals/              #   Oportunidades
 │   ├── decisions/          #   Decision matrix
 │   ├── inbox/              #   Inbox Inteligente 2.0
+│   ├── nossoagent/         #   Chat de Atendimento omnichannel (NossoAgentInboxPage)
 │   ├── onboarding/         #   Onboarding + VerticalSelector
+│   ├── patients/           #   Módulo clínico — prontuário (PatientRecordView, Timeline)
 │   ├── profile/            #   Perfil do usuário
-│   ├── properties/         #   Módulo imobiliário (PropertyCard, PropertyMatchList)
+│   ├── properties/         #   Módulo imobiliário (PropertyCard, PropertyMatchList, VisitScheduler)
 │   ├── reports/            #   Quick Reports
-│   ├── settings/           #   Configurações (AI Governance, Notificações, Sequências)
-│   └── shared/             #   Componentes compartilhados entre features
+│   ├── settings/           #   Configurações (AI Governance, Notificações, Sequências, Campanhas)
+│   ├── shared/             #   Componentes compartilhados entre features
+│   └── treatments/         #   Módulo clínico — planos de tratamento (TreatmentPlanEditor)
 ├── hooks/                  # Hooks globais (useVerticalConfig, useFeatureFlag, etc.)
 ├── lib/                    # Bibliotecas e lógica de negócio
 │   ├── ai/                 #   IA: tools, prompt-composer, priority-score
@@ -215,16 +221,27 @@ IntelliX.AI_CRM/
 |---|---|---|---|
 | 1 | `20251201000000_schema_init.sql` | 01/12/2025 | Schema inicial completo: tabelas core (organizations, profiles, contacts, deals, activities, boards, pipeline_stages, etc.), RLS, índices, triggers |
 | 2 | `20260128000000_complementary_features.sql` | 28/01/2026 | Tabelas complementares: `ai_usage_logs`, `ai_quotas`, `inbox_action_items`, `notification_preferences`, `webhook_events_out`, `webhook_deliveries`, `integration_outbound_endpoints` |
-| 3 | `20260211000001_webhook_events_expansion.sql` | 11/02/2026 | Triggers para 7 eventos de webhook + `dispatch_webhook_event()` + `check_stagnant_deals()` via pg_cron |
-| 4 | `20260211000002_ai_governance_functions.sql` | 11/02/2026 | Functions `increment_ai_quota_usage()` + `reset_monthly_ai_quotas()` via pg_cron |
-| 5 | `20260224000001_vertical_infrastructure.sql` | 24/02/2026 | Enum `business_type_enum`, tabelas `vertical_configs`, `custom_field_values`, `vertical_properties` + RLS + índices |
-| 6 | `20260224000002_seed_vertical_configs.sql` | 24/02/2026 | Seed: 4 verticais com nomenclaturas, campos, pipelines, AI context, widgets, feature flags |
-| 7 | `20260224000003_setup_vertical_cron_jobs.sql` | 25/02/2026 | 9 pg_cron jobs para automações verticais (medical 3, dental 3, real estate 3) via pg_net → Edge Function |
-| 8 | `20260225000001_create_agent_tables.sql` | 25/02/2026 | Tabelas `agent_configs`, `conversations`, `messages`, `agent_tools_log` + RLS + 8 índices + Realtime + triggers `updated_at` |
-| 9 | `20260314000001_email_campaigns.sql` | 14/03/2026 | Tabelas `email_campaigns`, `email_templates`, `email_campaign_sends` + ENUMs + descadastramento por token |
-| 10 | `20260313000001_agent_methodology_system.sql` | 13/03/2026 | ALTER `agent_configs` (+7 campos JSON), 4 novas tabelas (`agent_methodology_templates`, `agent_board_configs`, `agent_stage_configs`, `agent_performance_metrics`), seed 8 templates de metodologias |
-| 11 | `20260314000002_agent_ab_tests.sql` | 14/03/2026 | Tabela `agent_ab_tests` — A/B testing de metodologias (Aprender mode). Variantes A/B com split de tráfego, métricas de conversão, winner + confidence, RLS + trigger updated_at |
-| 12 | `20260315000001_client_radar.sql` | 15/03/2026 | Colunas `gender`/`gender_inferred` em contacts; tabelas `client_event_rules` + `client_event_sends`; views `vw_vip_clients` + `vw_upcoming_birthdays`; trigger updated_at; pg_cron `daily-birthday-check` (11:00 UTC = 8h BRT) |
+| 3 | `20260211000000_webhook_base.sql` | 11/02/2026 | Base de webhooks: tabelas `webhook_endpoints`, `webhook_deliveries` + função `dispatch_webhook_event()` |
+| 4 | `20260211000001_webhook_events_expansion.sql` | 11/02/2026 | Triggers para 7 eventos de webhook (deal.created/won/lost/stagnant, contact.created/stage_changed, activity.completed) + `check_stagnant_deals()` via pg_cron |
+| 5 | `20260211000002_ai_governance_functions.sql` | 11/02/2026 | Functions `increment_ai_quota_usage()` + `reset_monthly_ai_quotas()` via pg_cron |
+| 6 | `20260224000001_vertical_infrastructure.sql` | 24/02/2026 | Enum `business_type_enum`, tabelas `vertical_configs`, `custom_field_values`, `vertical_properties` + RLS + índices |
+| 7 | `20260224000002_seed_vertical_configs.sql` | 24/02/2026 | Seed: 4 verticais com nomenclaturas, campos, pipelines, AI context, widgets, feature flags |
+| 8 | `20260224000003_setup_vertical_cron_jobs.sql` | 25/02/2026 | 9 pg_cron jobs para automações verticais (medical 3, dental 3, real estate 3) via pg_net → Edge Function |
+| 9 | `20260225000001_create_agent_tables.sql` | 25/02/2026 | Tabelas `agent_configs`, `conversations`, `messages`, `agent_tools_log` + RLS + 8 índices + Realtime + triggers `updated_at` |
+| 10 | `20260227000000_fix_system_notifications_rls.sql` | 27/02/2026 | Correção de RLS em `system_notifications` — permissão de leitura para usuários autenticados |
+| 11 | `20260227000001_dispatch_system_notifications.sql` | 27/02/2026 | Function `dispatch_system_notification()` para inserção de notificações internas via triggers |
+| 12 | `20260227184258_setup_sequence_cron.sql` | 27/02/2026 | pg_cron `process-sequences` — executa `processScheduledSteps()` para sequences automáticas |
+| 13 | `20260228000000_enable_pgvector_and_knowledge.sql` | 28/02/2026 | Extensão `pgvector`, tabela `knowledge_base` com embedding vector(1536), `match_knowledge()` function, índice HNSW |
+| 14 | `20260228000001_agent_summary_cron.sql` | 28/02/2026 | pg_cron `agent-summary-daily` — aciona Edge Function `agent-summary` para resumos diários de conversas |
+| 15 | `20260228000002_followup_automations.sql` | 28/02/2026 | Tabelas de follow-up automático: `followup_rules`, `followup_executions` + triggers de criação automática por evento |
+| 16 | `20260302000000_scheduling_schema.sql` | 02/03/2026 | Tabela `appointment_slots` para agendamento de consultas/visitas + RLS + índices |
+| 17 | `20260303000000_followup_sequences_and_journeys.sql` | 03/03/2026 | Tabelas `sequences`, `sequence_steps`, `sequence_enrollments`, `journey_events` — nurturing automatizado multicanal |
+| 18 | `20260303000001_business_profile_column.sql` | 03/03/2026 | Coluna `business_profile` (JSONB) em `agent_configs` para Business Profile Editor |
+| 19 | `20260303000002_cron_process_followups.sql` | 03/03/2026 | pg_cron `process-followups` — executa follow-ups pendentes a cada hora via pg_net → Edge Function |
+| 20 | `20260313000001_agent_methodology_system.sql` | 13/03/2026 | ALTER `agent_configs` (+7 campos JSON), 4 novas tabelas (`agent_methodology_templates`, `agent_board_configs`, `agent_stage_configs`, `agent_performance_metrics`), seed 8 templates de metodologias |
+| 21 | `20260314000001_email_campaigns.sql` | 14/03/2026 | Tabelas `email_campaigns`, `email_templates`, `email_campaign_sends` + ENUMs + descadastramento por token |
+| 22 | `20260314000002_agent_ab_tests.sql` | 14/03/2026 | Tabela `agent_ab_tests` — A/B testing de metodologias (Aprender mode). Variantes A/B com split de tráfego, métricas de conversão, winner + confidence, RLS + trigger updated_at |
+| 23 | `20260315000001_client_radar.sql` | 15/03/2026 | Colunas `gender`/`gender_inferred` em contacts; tabelas `client_event_rules` + `client_event_sends`; views `vw_vip_clients` + `vw_upcoming_birthdays`; trigger updated_at; pg_cron `daily-birthday-check` (11:00 UTC = 8h BRT) |
 
 ---
 
@@ -237,10 +254,18 @@ IntelliX.AI_CRM/
 | `/api/ai/usage` | GET | AI Governance | Estatísticas de uso e quota |
 | `/api/ai/inbox-generate` | POST | Inbox 2.0 | Geração automática de Action Items |
 | `/api/ai/generate` | POST | Verticalização | Endpoint unificado de IA contextual por vertical |
+| `/api/admin/*` | POST | Admin | Aprovação de usuários, init de settings, gerenciamento de roles |
 | `/api/contacts/*` | CRUD | Contatos | CRUD de contatos + enrich |
 | `/api/deals/*` | CRUD | Deals | CRUD de deals |
+| `/api/deals/bulk` | POST | Deals | Bulk ops (move/assign/tag/delete/export_csv) — 6 operações |
 | `/api/activities/*` | CRUD | Atividades | CRUD de atividades |
 | `/api/boards/*` | CRUD | Pipeline | CRUD de boards e stages |
+| `/api/deal-templates` | GET/POST/DELETE | Deal Templates | CRUD de templates de deal + aplicar template |
+| `/api/notifications` | GET/POST/PATCH | Notificações | CRUD de notificações + marcar como lida + preferências |
+| `/api/sequences` | GET/POST/PATCH/DELETE | Sequences | CRUD de sequências de atividades automáticas |
+| `/api/followups` | GET/POST/PATCH | Follow-ups | CRUD de regras e execuções de follow-up/nurturing |
+| `/api/conversations/*` | GET/POST/PATCH | NossoAgent | CRUD de conversas e mensagens do agente |
+| `/api/appointment-reminders` | POST | Agendamentos | Lembretes automáticos de consultas/visitas |
 | `/api/vertical/activate` | POST | Verticalização | Ativa vertical: seta business_type + cria pipeline |
 | `/api/dashboard/vertical-widgets` | GET | Dashboard | Dados dos widgets verticais por org |
 | `/api/properties` | GET/POST | Imobiliárias | CRUD imóveis com 8 filtros (status, tipo, valor, quartos, etc.) |
@@ -254,14 +279,41 @@ IntelliX.AI_CRM/
 | `/api/agent/stage-config` | GET/POST | Multi-Agent | Configuração de agente por estágio (get by stageId, list by boardId, upsert) |
 | `/api/agent/personalization` | GET/POST | Multi-Agent | Leitura/atualização bulk de personalização global (7 seções) |
 | `/api/agent/generate-prompt` | POST | Multi-Agent | Gera system prompt final resolvendo hierarquia stage>board>global + personalization |
+| `/api/agent/ab-tests` | GET/POST/PATCH | Multi-Agent | A/B testing de metodologias (criar, listar, atualizar status) |
+| `/api/agent/activate-vertical-pack` | POST | Multi-Agent | Ativa pack de metodologia por vertical em múltiplos boards |
 | `/api/client-radar` | GET/POST | Radar de Clientes | GET (scopes: summary, birthdays, vip, rules, commemorative) + POST (upsert event rule) |
 | `/api/client-radar/send-event-message` | POST | Radar de Clientes | Dispara mensagem de evento via WhatsApp/email, idempotência 409 se já enviado hoje |
+| `/api/reports` | GET | Relatórios | Quick Reports por período e dimensão |
+| `/api/settings` | GET/POST | Configurações | Leitura/atualização de configurações da org |
+| `/api/invites` | POST | Convites | Convite de membros via email |
+| `/api/mcp` | POST | MCP | Endpoint MCP para integrações externas |
+| `/api/installer` | POST | Instalação | Wizard de instalação inicial da org |
+| `/api/setup-instance` | POST | Instalação | Setup de instância WhatsApp/Evolution |
 | `/api/webhooks/*` | POST | Integrações | Endpoints inbound de webhooks |
-| `/api/public/*` | CRUD | API Pública | API pública documentada |
+| `/api/public/*` | CRUD | API Pública | API pública documentada (contacts, deals, activities) |
 
 ---
 
-## 7. Hooks Globais
+## 7. Edge Functions (Supabase)
+
+| Função | Descrição |
+|---|---|
+| `agent-engine` | Motor principal do agente: pipeline 14 etapas, resolução de metodologia, composição de prompt (13 seções), execução de tools, coleta de métricas |
+| `agent-webhook` | Recebe webhooks da Evolution API, identifica contato/org, roteia para `agent-engine` |
+| `agent-send-message` | Envia mensagens WhatsApp via Evolution API com suporte a delay e formatação |
+| `agent-summary` | Gera resumos diários de conversas via IA e salva em `conversations.summary` |
+| `agent-media-handler` | Processa mídia recebida (áudio, imagem, documento) — transcrição + análise |
+| `client-events-processor` | Processa eventos diários por org: aniversários e datas comemorativas, envia via WhatsApp, loga em `client_event_sends` |
+| `contact-enrichment` | Enriquecimento de contatos via IA (inferência de gênero, setor, cargo, etc.) |
+| `nurturing-cron` | Identifica conversas estagnadas (>3 dias) e gera follow-ups automáticos via IA |
+| `process-followups` | Executa follow-ups e sequências pendentes com base em regras de horário |
+| `sequence-executor` | Executa steps de sequências de atividades agendadas |
+| `vertical-automation` | Automações verticais específicas (lembretes de consulta, retorno imobiliário, etc.) |
+| `webhook-in` | Inbound de webhooks externos — valida assinatura e encaminha para handlers |
+
+---
+
+## 8. Hooks Globais
 
 | Hook | Arquivo | Descrição |
 |---|---|---|
@@ -289,7 +341,7 @@ IntelliX.AI_CRM/
 
 ---
 
-## 8. Decisões Arquiteturais (ADRs)
+## 9. Decisões Arquiteturais (ADRs)
 
 | # | Decisão | Data | Razão |
 |---|---|---|---|
@@ -302,7 +354,7 @@ IntelliX.AI_CRM/
 
 ---
 
-## 9. PRDs (Product Requirements Documents)
+## 10. PRDs (Product Requirements Documents)
 
 | Arquivo | Escopo | Status |
 |---|---|---|
@@ -315,7 +367,37 @@ IntelliX.AI_CRM/
 
 ---
 
-## 10. Histórico de Alterações (Changelog)
+## 11. Histórico de Alterações (Changelog)
+
+### 15/03/2026 (v2.3/v2.4) — Radar de Clientes — Inteligência de Relacionamento
+
+- **Branch:** `feature/nossoagent`
+- **O que mudou:**
+  - **Schema:** Coluna `gender` + `gender_inferred` adicionada a `contacts`. Tabelas `client_event_rules` (regras de automação por org/evento/canal) e `client_event_sends` (log com idempotência diária). Views `vw_vip_clients` (VIP Score = faturamento×0.7 + atividades×0.3) e `vw_upcoming_birthdays` (dias até próximo aniversário). pg_cron `daily-birthday-check` (11:00 UTC).
+  - **`SmartEventsBanner`** (`features/client-radar/components/`): Banner no topo do Dashboard. Mostra pills de aniversariantes hoje/próximos 7 dias com botão de envio rápido, pills de datas comemorativas próximas, badge de clientes VIP clicável. Descartável por sessão.
+  - **`ClientRadarPage`** (`features/client-radar/`): Página `/radar` com 4 abas — Aniversários (hoje/semana/mês com modal de ação), Clientes VIP (ranking 1-N com score, faturamento, deals, atividades), Datas Comemorativas (grid com cards e countdown), Automação (toggle por evento, dias de antecedência, canal, filtro de gênero).
+  - **`ClientRadarActionModal`**: Modal com 2 abas: editor de mensagem (template pré-preenchido, canal WhatsApp/email) e ações rápidas (desconto, nota, tarefa, ver perfil).
+  - **7 hooks TanStack Query** (`useRadarSummary`, `useUpcomingBirthdays`, `useVIPClients`, `useCommemorativeDates`, `useEventRules`, `useUpsertEventRule`, `useSendEventMessage`) — stale 5-10min, SSOT setQueryData.
+  - **2 API routes:** `GET/POST /api/client-radar` + `POST /api/client-radar/send-event-message` (verifica duplicata → 409, envia via Evolution API, loga resultado).
+  - **Edge Function `client-events-processor`**: Processa eventos diários para todas as orgs. Birthday: filtra por `days_until ≤ send_days_before`. Comemorativo: verifica data dinâmica (`nthDayOfMonth` para Dia das Mães/Pais) + filtro de gênero. Idempotência por org+contato+evento+dia.
+  - **Navegação:** Item "Radar" (ícone `Radar`) adicionado à sidebar desktop, NavigationRail (tablet) e MoreMenuSheet (mobile). Prefetch registrado.
+- **Arquivos criados/modificados:**
+  - `supabase/migrations/20260315000001_client_radar.sql` (novo)
+  - `lib/supabase/client-radar.ts` (novo)
+  - `app/api/client-radar/route.ts` (novo)
+  - `app/api/client-radar/send-event-message/route.ts` (novo)
+  - `features/client-radar/hooks/useClientRadar.ts` (novo)
+  - `features/client-radar/components/SmartEventsBanner.tsx` (novo)
+  - `features/client-radar/components/ClientRadarActionModal.tsx` (novo)
+  - `features/client-radar/ClientRadarPage.tsx` (novo)
+  - `app/(protected)/radar/page.tsx` (novo)
+  - `supabase/functions/client-events-processor/index.ts` (novo)
+  - `components/Layout.tsx` (modificado — nav item Radar)
+  - `components/navigation/navConfig.ts` (modificado — SECONDARY_NAV + SecondaryNavId)
+  - `lib/prefetch.ts` (modificado — rota radar)
+  - `features/dashboard/DashboardPage.tsx` (modificado — SmartEventsBanner injetado)
+
+---
 
 ### 14/03/2026 (v2.2) — Multi-Agent Methodology System — Phase 6: Vertical Packs + Aprender Mode
 
