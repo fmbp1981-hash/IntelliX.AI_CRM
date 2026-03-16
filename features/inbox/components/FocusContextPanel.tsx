@@ -44,6 +44,12 @@ import { generateSalesScript } from '@/lib/ai/tasksClient';
 import { MessageComposerModal, type MessageChannel } from './MessageComposerModal';
 import { callAIProxy } from '@/lib/supabase/ai-proxy';
 import type { ScriptCategory } from '@/lib/supabase/quickScripts';
+import { useOrgBusinessType } from '@/hooks/useOrgBusinessType';
+import { useVerticalConfig } from '@/hooks/useVerticalConfig';
+import { PatientRecordContainer } from '@/features/patients/components/PatientRecordContainer';
+import { TreatmentPlanContainer } from '@/features/treatments/components/TreatmentPlanContainer';
+import { PropertyMatchDashboard } from '@/features/properties/components/PropertyMatchDashboard';
+import { VisitScheduler } from '@/features/properties/components/VisitScheduler';
 
 // Performance: reuse Intl formatter instances.
 const PT_BR_SHORT_DATE_FORMATTER = new Intl.DateTimeFormat('pt-BR');
@@ -108,6 +114,12 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
 
     // AI Context Injection
     const { setContext, clearContext } = useAI();
+
+    // Vertical Config to inject specific components
+    const { businessType, isLoading: isOrgLoading } = useOrgBusinessType();
+    const { data: config } = useVerticalConfig(businessType);
+    const isClinical = businessType === 'medical_clinic' || businessType === 'dental_clinic';
+    const isRealEstate = businessType === 'real_estate';
 
     useEffect(() => {
         // UX: allow ESC to always close the Cockpit overlay, even when focus is inside inputs.
@@ -993,146 +1005,168 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                             </div>
                         </div>
 
-                        {/* Contact Info Card */}
+                        {/* Contact Info Card or Patient Record */}
                         {contact && (
-                            <div className="p-4 border-b border-dark-border">
-                                <div className="flex items-start gap-3">
-                                    {/* Avatar */}
-                                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white font-semibold text-lg shrink-0">
-                                        {contact.name?.charAt(0).toUpperCase() || '?'}
-                                    </div>
-
-                                    {/* Info */}
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
-                                            <h4 className="text-sm font-semibold text-white truncate">{contact.name}</h4>
-                                            {contact.role && (
-                                                <span className="text-[10px] px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded">{contact.role}</span>
-                                            )}
+                            isClinical ? (
+                                <div className="p-4 border-b border-dark-border">
+                                    <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3 ml-1">Prontuário</h4>
+                                    <PatientRecordContainer contact={contact} />
+                                </div>
+                            ) : isRealEstate ? (
+                                <div className="p-4 border-b border-dark-border">
+                                    <PropertyMatchDashboard contactId={contact.id} />
+                                </div>
+                            ) : (
+                                <div className="p-4 border-b border-dark-border">
+                                    <div className="flex items-start gap-3">
+                                        {/* Avatar */}
+                                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white font-semibold text-lg shrink-0">
+                                            {contact.name?.charAt(0).toUpperCase() || '?'}
                                         </div>
 
-                                        {/* Contact details grid */}
-                                        <div className="mt-2 grid grid-cols-1 gap-1.5">
-                                            {contact.phone && (
-                                                <button
-                                                    onClick={() => navigator.clipboard.writeText(contact.phone || '')}
-                                                    className="flex items-center gap-2 text-xs text-slate-400 hover:text-green-400 transition-colors group"
-                                                >
-                                                    <Phone size={12} className="text-slate-600 group-hover:text-green-400 shrink-0" />
-                                                    <span className="truncate">{contact.phone}</span>
-                                                    <Copy size={10} className="opacity-0 group-hover:opacity-100 ml-auto shrink-0" />
-                                                </button>
-                                            )}
+                                        {/* Info */}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                <h4 className="text-sm font-semibold text-white truncate">{contact.name}</h4>
+                                                {contact.role && (
+                                                    <span className="text-[10px] px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded">{contact.role}</span>
+                                                )}
+                                            </div>
 
-                                            {contact.email && (
-                                                <button
-                                                    onClick={() => navigator.clipboard.writeText(contact.email || '')}
-                                                    className="flex items-center gap-2 text-xs text-slate-400 hover:text-cyan-400 transition-colors group"
-                                                >
-                                                    <Mail size={12} className="text-slate-600 group-hover:text-cyan-400 shrink-0" />
-                                                    <span className="truncate">{contact.email}</span>
-                                                    <Copy size={10} className="opacity-0 group-hover:opacity-100 ml-auto shrink-0" />
-                                                </button>
+                                            {/* Contact details grid */}
+                                            <div className="mt-2 grid grid-cols-1 gap-1.5">
+                                                {contact.phone && (
+                                                    <button
+                                                        onClick={() => navigator.clipboard.writeText(contact.phone || '')}
+                                                        className="flex items-center gap-2 text-xs text-slate-400 hover:text-green-400 transition-colors group"
+                                                    >
+                                                        <Phone size={12} className="text-slate-600 group-hover:text-green-400 shrink-0" />
+                                                        <span className="truncate">{contact.phone}</span>
+                                                        <Copy size={10} className="opacity-0 group-hover:opacity-100 ml-auto shrink-0" />
+                                                    </button>
+                                                )}
+
+                                                {contact.email && (
+                                                    <button
+                                                        onClick={() => navigator.clipboard.writeText(contact.email || '')}
+                                                        className="flex items-center gap-2 text-xs text-slate-400 hover:text-cyan-400 transition-colors group"
+                                                    >
+                                                        <Mail size={12} className="text-slate-600 group-hover:text-cyan-400 shrink-0" />
+                                                        <span className="truncate">{contact.email}</span>
+                                                        <Copy size={10} className="opacity-0 group-hover:opacity-100 ml-auto shrink-0" />
+                                                    </button>
+                                                )}
+                                            </div>
+
+                                            {/* Extra info */}
+                                            <div className="mt-2 flex flex-wrap gap-2">
+                                                {contact.source && (
+                                                    <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded border border-blue-500/20">
+                                                        {contact.source}
+                                                    </span>
+                                                )}
+                                                {contact.status && (
+                                                    <span className={`text-[10px] px-1.5 py-0.5 rounded border ${contact.status === 'ACTIVE' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
+                                                        contact.status === 'INACTIVE' ? 'bg-slate-500/10 text-slate-400 border-slate-500/20' :
+                                                            'bg-red-500/10 text-red-400 border-red-500/20'
+                                                        }`}>
+                                                        {contact.status === 'ACTIVE' ? 'Ativo' : contact.status === 'INACTIVE' ? 'Inativo' : 'Churned'}
+                                                    </span>
+                                                )}
+                                                {contact.totalValue && contact.totalValue > 0 && (
+                                                    <span className="text-[10px] px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 rounded border border-emerald-500/20">
+                                                        LTV: R$ {contact.totalValue.toLocaleString('pt-BR')}
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {/* Notes preview */}
+                                            {contact.notes && (
+                                                <p className="mt-2 text-[11px] text-slate-500 line-clamp-2 italic">
+                                                    "{contact.notes}"
+                                                </p>
                                             )}
                                         </div>
-
-                                        {/* Extra info */}
-                                        <div className="mt-2 flex flex-wrap gap-2">
-                                            {contact.source && (
-                                                <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded border border-blue-500/20">
-                                                    {contact.source}
-                                                </span>
-                                            )}
-                                            {contact.status && (
-                                                <span className={`text-[10px] px-1.5 py-0.5 rounded border ${contact.status === 'ACTIVE' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
-                                                    contact.status === 'INACTIVE' ? 'bg-slate-500/10 text-slate-400 border-slate-500/20' :
-                                                        'bg-red-500/10 text-red-400 border-red-500/20'
-                                                    }`}>
-                                                    {contact.status === 'ACTIVE' ? 'Ativo' : contact.status === 'INACTIVE' ? 'Inativo' : 'Churned'}
-                                                </span>
-                                            )}
-                                            {contact.totalValue && contact.totalValue > 0 && (
-                                                <span className="text-[10px] px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 rounded border border-emerald-500/20">
-                                                    LTV: R$ {contact.totalValue.toLocaleString('pt-BR')}
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        {/* Notes preview */}
-                                        {contact.notes && (
-                                            <p className="mt-2 text-[11px] text-slate-500 line-clamp-2 italic">
-                                                "{contact.notes}"
-                                            </p>
-                                        )}
                                     </div>
                                 </div>
-                            </div>
+                            )
                         )}
 
-                        {/* Deal Info Card */}
-                        <div className="p-4 border-b border-dark-border">
-                            <div className="flex items-center justify-between mb-2">
-                                <span className="text-[10px] text-slate-600 uppercase tracking-wider font-semibold">Negócio</span>
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded ${deal.priority === 'high' ? 'bg-red-500/10 text-red-400' :
-                                    deal.priority === 'medium' ? 'bg-yellow-500/10 text-yellow-400' :
-                                        'bg-slate-500/10 text-slate-400'
-                                    }`}>
-                                    {deal.priority === 'high' ? '🔥 Alta' : deal.priority === 'medium' ? 'Média' : 'Baixa'}
-                                </span>
+                        {/* Deal Info Card or Treatment Plan */}
+                        {isClinical ? (
+                            <div className="p-4 border-b border-dark-border">
+                                <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3 ml-1">Plano</h4>
+                                <TreatmentPlanContainer deal={deal} />
                             </div>
-
-                            <h4 className="text-sm font-semibold text-white mb-2">{deal.title}</h4>
-
-                            <div className="grid grid-cols-2 gap-2 text-xs">
-                                <div>
-                                    <span className="text-slate-600">Valor</span>
-                                    <p className="text-emerald-400 font-semibold">
-                                        R$ {deal.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                    </p>
-                                </div>
-                                <div>
-                                    <span className="text-slate-600">Probabilidade</span>
-                                    <p className="text-slate-300 font-semibold">{deal.probability || 50}%</p>
-                                </div>
-                                <div>
-                                    <span className="text-slate-600">Criado em</span>
-                                    <p className="text-slate-400">
-                                        {new Date(deal.createdAt).toLocaleDateString('pt-BR')}
-                                    </p>
-                                </div>
-                                <div>
-                                    <span className="text-slate-600">Atualizado</span>
-                                    <p className="text-slate-400">
-                                        {new Date(deal.updatedAt).toLocaleDateString('pt-BR')}
-                                    </p>
-                                </div>
+                        ) : isRealEstate ? (
+                            <div className="p-4 border-b border-dark-border">
+                                <VisitScheduler dealId={deal.id} />
                             </div>
-
-                            {/* Tags */}
-                            {deal.tags && deal.tags.length > 0 && (
-                                <div className="mt-2 flex flex-wrap gap-1">
-                                    {deal.tags.slice(0, 4).map((tag, i) => (
-                                        <span key={i} className="text-[10px] px-1.5 py-0.5 bg-primary-500/10 text-primary-400 rounded">
-                                            #{tag}
-                                        </span>
-                                    ))}
-                                    {deal.tags.length > 4 && (
-                                        <span className="text-[10px] text-slate-500">+{deal.tags.length - 4}</span>
-                                    )}
+                        ) : (
+                            <div className="p-4 border-b border-dark-border">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-[10px] text-slate-600 uppercase tracking-wider font-semibold">Negócio</span>
+                                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${deal.priority === 'high' ? 'bg-red-500/10 text-red-400' :
+                                        deal.priority === 'medium' ? 'bg-yellow-500/10 text-yellow-400' :
+                                            'bg-slate-500/10 text-slate-400'
+                                        }`}>
+                                        {deal.priority === 'high' ? '🔥 Alta' : deal.priority === 'medium' ? 'Média' : 'Baixa'}
+                                    </span>
                                 </div>
-                            )}
 
-                            {/* AI Summary */}
-                            {deal.aiSummary && (
-                                <div className="mt-2 p-2 bg-slate-800/50 rounded-lg border border-slate-700/50">
-                                    <div className="flex items-center gap-1 mb-1">
-                                        <Sparkles size={10} className="text-primary-400" />
-                                        <span className="text-[10px] text-primary-400 font-medium">Resumo IA</span>
+                                <h4 className="text-sm font-semibold text-white mb-2">{deal.title}</h4>
+
+                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                    <div>
+                                        <span className="text-slate-600">Valor</span>
+                                        <p className="text-emerald-400 font-semibold">
+                                            R$ {deal.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                        </p>
                                     </div>
-                                    <p className="text-[11px] text-slate-400 line-clamp-2">{deal.aiSummary}</p>
+                                    <div>
+                                        <span className="text-slate-600">Probabilidade</span>
+                                        <p className="text-slate-300 font-semibold">{deal.probability || 50}%</p>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-600">Criado em</span>
+                                        <p className="text-slate-400">
+                                            {new Date(deal.createdAt).toLocaleDateString('pt-BR')}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-600">Atualizado</span>
+                                        <p className="text-slate-400">
+                                            {new Date(deal.updatedAt).toLocaleDateString('pt-BR')}
+                                        </p>
+                                    </div>
                                 </div>
-                            )}
-                        </div>
+
+                                {/* Tags */}
+                                {deal.tags && deal.tags.length > 0 && (
+                                    <div className="mt-2 flex flex-wrap gap-1">
+                                        {deal.tags.slice(0, 4).map((tag, i) => (
+                                            <span key={i} className="text-[10px] px-1.5 py-0.5 bg-primary-500/10 text-primary-400 rounded">
+                                                #{tag}
+                                            </span>
+                                        ))}
+                                        {deal.tags.length > 4 && (
+                                            <span className="text-[10px] text-slate-500">+{deal.tags.length - 4}</span>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* AI Summary */}
+                                {deal.aiSummary && (
+                                    <div className="mt-2 p-2 bg-slate-800/50 rounded-lg border border-slate-700/50">
+                                        <div className="flex items-center gap-1 mb-1">
+                                            <Sparkles size={10} className="text-primary-400" />
+                                            <span className="text-[10px] text-primary-400 font-medium">Resumo IA</span>
+                                        </div>
+                                        <p className="text-[11px] text-slate-400 line-clamp-2">{deal.aiSummary}</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* Move to Stage (Sidebar) - With Semantic Colors & Days */}
                         <div className="p-4 border-t border-white/5">

@@ -12,7 +12,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { activateVertical } from '@/lib/supabase/vertical-activation';
 import type { BusinessType } from '@/types/vertical';
 
@@ -62,9 +62,12 @@ export async function POST(req: NextRequest) {
             );
         }
 
+        // Create Admin client to bypass RLS for updating the organization
+        const adminSupabase = await createAdminClient();
+
         // Activate
         const result = await activateVertical(
-            supabase,
+            adminSupabase,
             profile.organization_id,
             businessType,
         );

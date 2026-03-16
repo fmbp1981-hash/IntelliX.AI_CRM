@@ -12,9 +12,9 @@ import { AICenterSettings } from './AICenterSettings';
 
 import { UsersPage } from './UsersPage';
 import { useAuth } from '@/context/AuthContext';
-import { Settings as SettingsIcon, Users, Database, Sparkles, Plug, Package, Bell, RotateCcw, BarChart3, FileText, MessageSquare, Building2 } from 'lucide-react';
+import { Settings as SettingsIcon, Users, Database, Sparkles, Plug, Package, Bell, RotateCcw, BarChart3, FileText, MessageSquare, Building2, Mail } from 'lucide-react';
 
-type SettingsTab = 'general' | 'products' | 'integrations' | 'ai' | 'business-profile' | 'notifications' | 'sequences' | 'templates' | 'followups' | 'reports' | 'data' | 'users';
+type SettingsTab = 'general' | 'products' | 'integrations' | 'ai' | 'business-profile' | 'notifications' | 'sequences' | 'templates' | 'followups' | 'reports' | 'campaigns' | 'data' | 'users';
 
 interface GeneralSettingsProps {
   hash?: string;
@@ -256,6 +256,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ tab: initialTab }) => {
     { id: 'sequences' as SettingsTab, name: 'Sequências', icon: RotateCcw },
     { id: 'templates' as SettingsTab, name: 'Templates', icon: FileText },
     { id: 'followups' as SettingsTab, name: 'Follow-ups', icon: MessageSquare },
+    { id: 'campaigns' as SettingsTab, name: 'Campanhas', icon: Mail },
     { id: 'reports' as SettingsTab, name: 'Relatórios', icon: BarChart3 },
     { id: 'data' as SettingsTab, name: 'Dados', icon: Database },
     ...(profile?.role === 'admin' ? [{ id: 'users' as SettingsTab, name: 'Equipe', icon: Users }] : []),
@@ -318,6 +319,16 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ tab: initialTab }) => {
         return (
           <React.Suspense fallback={<div className="py-12 text-center text-slate-400">Carregando...</div>}>
             <div className="pb-10"><FollowupsManager /></div>
+          </React.Suspense>
+        );
+      }
+      case 'campaigns': {
+        const CampaignsManager = React.lazy(
+          () => import('@/features/campaigns/CampaignsManager')
+        );
+        return (
+          <React.Suspense fallback={<div className="py-12 text-center text-slate-400">Carregando...</div>}>
+            <div className="pb-10"><CampaignsManager /></div>
           </React.Suspense>
         );
       }

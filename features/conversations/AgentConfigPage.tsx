@@ -3,16 +3,34 @@
 import React, { useState } from 'react';
 import { useAgentConfig, useUpdateAgentConfig } from '@/hooks/useAgentConfig';
 import { AgentMetricsTab } from './components/AgentMetricsTab';
+import { AgentMethodologyTab } from './components/AgentMethodologyTab';
+import { AgentPersonalityTab } from './components/AgentPersonalityTab';
+import { AgentKnowledgeTab } from './components/AgentKnowledgeTab';
+import { AgentTrainingTab } from './components/AgentTrainingTab';
 
-type TabId = 'connection' | 'behavior' | 'hours' | 'qualification' | 'transfer' | 'metrics';
+type TabId =
+    | 'connection'
+    | 'behavior'
+    | 'hours'
+    | 'qualification'
+    | 'transfer'
+    | 'methodology'
+    | 'personality'
+    | 'knowledge'
+    | 'training'
+    | 'metrics';
 
-const TABS: { id: TabId; label: string; icon: string }[] = [
-    { id: 'connection', label: 'Conexão', icon: '📱' },
-    { id: 'behavior', label: 'Comportamento', icon: '🧠' },
-    { id: 'hours', label: 'Horários', icon: '🕐' },
-    { id: 'qualification', label: 'Qualificação', icon: '📋' },
-    { id: 'transfer', label: 'Transferência', icon: '🔄' },
-    { id: 'metrics', label: 'Métricas', icon: '📊' },
+const TABS: { id: TabId; label: string; icon: string; group?: 'core' | 'ai' }[] = [
+    { id: 'connection', label: 'Conexão', icon: '📱', group: 'core' },
+    { id: 'behavior', label: 'Comportamento', icon: '🧠', group: 'core' },
+    { id: 'hours', label: 'Horários', icon: '🕐', group: 'core' },
+    { id: 'qualification', label: 'Qualificação', icon: '📋', group: 'core' },
+    { id: 'transfer', label: 'Transferência', icon: '🔄', group: 'core' },
+    { id: 'methodology', label: 'Metodologia', icon: '🎯', group: 'ai' },
+    { id: 'personality', label: 'Personalidade', icon: '✨', group: 'ai' },
+    { id: 'knowledge', label: 'Conhecimento', icon: '📚', group: 'ai' },
+    { id: 'training', label: 'Treinamento', icon: '🏋️', group: 'ai' },
+    { id: 'metrics', label: 'Métricas', icon: '📊', group: 'core' },
 ];
 
 const DAYS = [
@@ -90,20 +108,35 @@ export const AgentConfigPage: React.FC = () => {
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-1 mb-6 border-b border-slate-200 dark:border-white/10">
-                {TABS.map((tab) => (
-                    <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 ${activeTab === tab.id
-                            ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
-                            : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-                            }`}
-                    >
-                        <span className="mr-1.5">{tab.icon}</span>
-                        {tab.label}
-                    </button>
-                ))}
+            <div className="mb-6 border-b border-slate-200 dark:border-white/10">
+                {/* AI group label */}
+                <div className="flex flex-wrap gap-0.5 mb-1">
+                    {TABS.filter((t) => t.group === 'ai').length > 0 && (
+                        <div className="w-full flex items-center gap-2 mb-1 px-1">
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-violet-500 dark:text-violet-400">
+                                ✨ IA Avançada
+                            </span>
+                            <div className="flex-1 h-px bg-violet-100 dark:bg-violet-500/20" />
+                        </div>
+                    )}
+                </div>
+                <div className="flex flex-wrap gap-0.5">
+                    {TABS.map((tab) => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`px-3.5 py-2.5 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${activeTab === tab.id
+                                ? tab.group === 'ai'
+                                    ? 'border-violet-500 text-violet-600 dark:text-violet-400'
+                                    : 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
+                                : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                }`}
+                        >
+                            <span className="mr-1.5">{tab.icon}</span>
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* Tab content */}
@@ -455,6 +488,30 @@ export const AgentConfigPage: React.FC = () => {
                             </div>
                         </FieldGroup>
                     </>
+                )}
+
+                {activeTab === 'methodology' && (
+                    <div className="py-2">
+                        <AgentMethodologyTab />
+                    </div>
+                )}
+
+                {activeTab === 'personality' && (
+                    <div className="py-2">
+                        <AgentPersonalityTab />
+                    </div>
+                )}
+
+                {activeTab === 'knowledge' && (
+                    <div className="py-2">
+                        <AgentKnowledgeTab />
+                    </div>
+                )}
+
+                {activeTab === 'training' && (
+                    <div className="py-2">
+                        <AgentTrainingTab />
+                    </div>
                 )}
 
                 {activeTab === 'metrics' && (
