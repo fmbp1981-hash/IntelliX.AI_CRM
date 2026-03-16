@@ -49,7 +49,9 @@ import {
   Bug,
   CheckSquare,
   PanelLeftClose,
-  PanelLeftOpen
+  PanelLeftOpen,
+  MessageCircle,
+  Radar,
 } from 'lucide-react';
 import { useCRM } from '../context/CRMContext';
 import { useAuth } from '../context/AuthContext';
@@ -272,6 +274,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <nav className={`flex-1 p-4 space-y-2 flex flex-col ${sidebarCollapsed ? 'items-center px-2' : ''}`} aria-label="Navegação do sistema">
             {[
               { to: '/inbox', icon: Inbox, label: 'Inbox', prefetch: 'inbox' as const },
+              { to: '/atendimento', icon: MessageCircle, label: 'Atendimento', prefetch: 'atendimento' as const },
+              { to: '/radar', icon: Radar, label: 'Radar', prefetch: 'radar' as const },
               { to: '/dashboard', icon: LayoutDashboard, label: 'Visão Geral', prefetch: 'dashboard' as const },
               { to: '/boards', icon: KanbanSquare, label: 'Boards', prefetch: 'boards' as const },
               { to: '/contacts', icon: Users, label: 'Contatos', prefetch: 'contacts' as const },

@@ -12,6 +12,7 @@ import { StatCard } from './components/StatCard';
 import { ActivityFeedItem } from './components/ActivityFeedItem';
 import { PipelineAlertsModal } from './components/PipelineAlertsModal';
 import { VerticalDashboardWidgets } from './components/VerticalDashboardWidgets';
+import { SmartEventsBanner } from '@/features/client-radar/components/SmartEventsBanner';
 import { useDashboardMetrics, PeriodFilter, COMPARISON_LABELS } from './hooks/useDashboardMetrics';
 import { useVerticalWidgets } from './hooks/useVerticalWidgets';
 import { useVerticalConfig } from '@/hooks/useVerticalConfig';
@@ -173,6 +174,9 @@ const DashboardPage: React.FC = () => {
           {/* Button removed */}
         </div>
       </div>
+
+      {/* Smart Events Banner — Client Radar */}
+      <SmartEventsBanner />
 
       {/* KPI Grid — Vertical-Aware */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">

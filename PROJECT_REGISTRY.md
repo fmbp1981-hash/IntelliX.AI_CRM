@@ -1,8 +1,8 @@
 # PROJECT_REGISTRY.md — NossoCRM (IntelliX.AI_CRM)
 
 > **Documento Vivo:** Atualizado a cada modificação significativa.
-> **Última Atualização:** 14 de Março de 2026 (21:00 BRT)
-> **Versão do Registro:** 2.2
+> **Última Atualização:** 15 de Março de 2026 (22:00 BRT)
+> **Versão do Registro:** 2.3
 
 ---
 
@@ -57,6 +57,7 @@ IntelliX.AI_CRM/
 │   ├── ai-hub/             #   Central de IA
 │   ├── boards/             #   Pipeline Kanban (maior módulo)
 │   ├── contacts/           #   Gestão de contatos
+│   ├── client-radar/       #   Radar de Clientes (aniversários, VIPs, datas comemorativas, automação)
 │   ├── dashboard/          #   Dashboard e métricas + vertical widgets
 │   ├── deals/              #   Oportunidades
 │   ├── decisions/          #   Decision matrix
@@ -183,6 +184,29 @@ IntelliX.AI_CRM/
 | **5 — Agent Engine Enhancement** | ✅ Completo | `supabase/functions/agent-engine/index.ts` — Step 3.5 resolve stageId/boardId do deal em runtime; `resolveMethodology()` (stage_configs > board_configs > global); `loadPersonalization()` (tone, business context, behavioral training); `buildMethodologyGuide()` (BANT/SPIN/MEDDIC/GPCT/FA/Neurovendas/Consultivo/Híbrido); `composeSystemPrompt()` refatorado com 13 seções ordenadas |
 | **6 — Vertical Packs + Aprender** | ✅ Completo | `app/api/agent/activate-vertical-pack/route.ts` (API de ativação por vertical com defaults de tom/regras), `features/conversations/components/VerticalPackWizard.tsx` (wizard 3-step modal), `supabase/migrations/20260314000002_agent_ab_tests.sql` (tabela agent_ab_tests + RLS), `app/api/agent/ab-tests/route.ts` (GET/POST/PATCH status), `features/conversations/components/AgentLearnModePanel.tsx` (painel A/B testing do modo Aprender). Agent Engine: `trackConversationMetric()` Step 13.5 coleta métricas diárias de metodologia. |
 
+### 4.6 Radar de Clientes — Inteligência de Relacionamento (branch `feature/nossoagent`)
+
+> **Objetivo:** Visão proativa dos clientes para nutrir fidelidade — aniversários, VIPs, datas comemorativas e automação via agente.
+
+| Componente | Status | Arquivo | Descrição |
+|---|---|---|---|
+| **Migration** | ✅ Aplicado | `20260315000001_client_radar.sql` | `gender` + `gender_inferred` em `contacts`; tabelas `client_event_rules` + `client_event_sends`; views `vw_vip_clients` + `vw_upcoming_birthdays`; pg_cron `daily-birthday-check` (11:00 UTC) |
+| **Service Layer** | ✅ Completo | `lib/supabase/client-radar.ts` | Tipos (Gender, EventType, BirthdayContact, VIPClient, CommemorativeDate, ClientEventRule, RadarSummary); funções CRUD + `getRadarSummary()`, `interpolateTemplate()`, `nthDayOfMonth()`, `DEFAULT_MESSAGE_TEMPLATES` |
+| **API Routes** | ✅ Completo | `app/api/client-radar/route.ts` | GET (scopes: summary, birthdays, vip, rules, commemorative) + POST (upsert event rule) |
+| **Send Message API** | ✅ Completo | `app/api/client-radar/send-event-message/route.ts` | POST — envia via Evolution API (WhatsApp), verifica duplicatas (409), loga em `client_event_sends` |
+| **Hooks** | ✅ Completo | `features/client-radar/hooks/useClientRadar.ts` | `useRadarSummary` (5min stale), `useUpcomingBirthdays`, `useVIPClients`, `useCommemorativeDates`, `useEventRules`, `useUpsertEventRule` (SSOT), `useSendEventMessage` |
+| **SmartEventsBanner** | ✅ Completo | `features/client-radar/components/SmartEventsBanner.tsx` | Banner no topo do Dashboard com aniversários (hoje/semana), datas comemorativas, badge VIP. Botão de envio rápido por contato. Descartável. |
+| **ClientRadarActionModal** | ✅ Completo | `features/client-radar/components/ClientRadarActionModal.tsx` | Modal 2 abas: Mensagem (template editável, canal WhatsApp/email) + Ações rápidas (desconto, nota, tarefa, perfil) |
+| **ClientRadarPage** | ✅ Completo | `features/client-radar/ClientRadarPage.tsx` | Página `/radar` com 4 abas: Aniversários (hoje/semana/mês), Clientes VIP (ranking por score), Datas Comemorativas (cards com contagem), Automação (toggle por tipo de evento, dias antes, canal, gênero) |
+| **Rota `/radar`** | ✅ Completo | `app/(protected)/radar/page.tsx` | Dynamic import da ClientRadarPage |
+| **Nav + Prefetch** | ✅ Completo | `components/Layout.tsx`, `components/navigation/navConfig.ts`, `lib/prefetch.ts` | Ícone `Radar` na sidebar desktop + NavigationRail tablet + MoreMenuSheet mobile |
+| **Edge Function** | ✅ Completo | `supabase/functions/client-events-processor/index.ts` | Processa eventos diários: busca regras ativas por org, identifica contatos elegíveis (birthday=dias até aniversário, comemorativo=gênero filter), verifica idempotência, envia via Evolution API, loga resultado |
+| **Dashboard Integration** | ✅ Completo | `features/dashboard/DashboardPage.tsx` | `<SmartEventsBanner />` injetado acima do KPI Grid |
+
+**Datas comemorativas suportadas:** `birthday`, `womens_day` (💜 8/mar, feminino), `mothers_day` (🌸 2º domingo de maio, feminino), `fathers_day` (👨‍👧 2º domingo de agosto, masculino), `valentines_day` (❤️ 12/jun), `christmas` (🎄 25/dez), `new_year` (🎆 1/jan), `customer_day` (🤝 15/set), `custom`
+
+**VIP Score:** `(won_deals_value × 0.7) + (activities_count × 100 × 0.3)` — ordenado descendente
+
 ---
 
 ## 5. Migrations (Histórico Cronológico)
@@ -200,6 +224,7 @@ IntelliX.AI_CRM/
 | 9 | `20260314000001_email_campaigns.sql` | 14/03/2026 | Tabelas `email_campaigns`, `email_templates`, `email_campaign_sends` + ENUMs + descadastramento por token |
 | 10 | `20260313000001_agent_methodology_system.sql` | 13/03/2026 | ALTER `agent_configs` (+7 campos JSON), 4 novas tabelas (`agent_methodology_templates`, `agent_board_configs`, `agent_stage_configs`, `agent_performance_metrics`), seed 8 templates de metodologias |
 | 11 | `20260314000002_agent_ab_tests.sql` | 14/03/2026 | Tabela `agent_ab_tests` — A/B testing de metodologias (Aprender mode). Variantes A/B com split de tráfego, métricas de conversão, winner + confidence, RLS + trigger updated_at |
+| 12 | `20260315000001_client_radar.sql` | 15/03/2026 | Colunas `gender`/`gender_inferred` em contacts; tabelas `client_event_rules` + `client_event_sends`; views `vw_vip_clients` + `vw_upcoming_birthdays`; trigger updated_at; pg_cron `daily-birthday-check` (11:00 UTC = 8h BRT) |
 
 ---
 
@@ -229,6 +254,8 @@ IntelliX.AI_CRM/
 | `/api/agent/stage-config` | GET/POST | Multi-Agent | Configuração de agente por estágio (get by stageId, list by boardId, upsert) |
 | `/api/agent/personalization` | GET/POST | Multi-Agent | Leitura/atualização bulk de personalização global (7 seções) |
 | `/api/agent/generate-prompt` | POST | Multi-Agent | Gera system prompt final resolvendo hierarquia stage>board>global + personalization |
+| `/api/client-radar` | GET/POST | Radar de Clientes | GET (scopes: summary, birthdays, vip, rules, commemorative) + POST (upsert event rule) |
+| `/api/client-radar/send-event-message` | POST | Radar de Clientes | Dispara mensagem de evento via WhatsApp/email, idempotência 409 se já enviado hoje |
 | `/api/webhooks/*` | POST | Integrações | Endpoints inbound de webhooks |
 | `/api/public/*` | CRUD | API Pública | API pública documentada |
 
