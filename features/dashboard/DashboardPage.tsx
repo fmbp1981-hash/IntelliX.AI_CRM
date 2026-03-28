@@ -204,7 +204,7 @@ const DashboardPage: React.FC = () => {
               subtext={changeInfo.text}
               subtextPositive={changeInfo.isPositive}
               icon={IconComponent}
-              color={kpi.color}
+              accentColor={kpi.color}
               onClick={kpi.route ? () => router.push(kpi.route!) : undefined}
               comparisonLabel={COMPARISON_LABELS[period]}
             />
