@@ -4,23 +4,35 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const badgeVariants = cva(
-    "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
-    {
-        variants: {
-            variant: {
-                default:
-                    "border-transparent bg-primary text-primary-foreground hover:bg-primary/80",
-                secondary:
-                    "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
-                destructive:
-                    "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
-                outline: "text-foreground",
-            },
-        },
-        defaultVariants: {
-            variant: "default",
-        },
-    }
+  "inline-flex items-center rounded-[4px] border px-1.5 py-0.5 text-[10px] font-semibold tracking-[0.05em] uppercase transition-colors",
+  {
+    variants: {
+      variant: {
+        amber:
+          "bg-[var(--color-warning-bg)] text-[var(--color-warning)] border-[var(--color-warning)]/20",
+        blue:
+          "bg-[var(--color-info-bg)] text-[var(--color-info)] border-[var(--color-info)]/20",
+        green:
+          "bg-[var(--color-success-bg)] text-[var(--color-success)] border-[var(--color-success)]/20",
+        gray:
+          "bg-[var(--color-muted)] text-[var(--color-text-muted)] border-[var(--color-border)]",
+        red:
+          "bg-[var(--color-error-bg)] text-[var(--color-error)] border-[var(--color-error)]/20",
+        // Legacy aliases so existing usages don't break
+        default:
+          "bg-[var(--color-warning-bg)] text-[var(--color-warning)] border-[var(--color-warning)]/20",
+        secondary:
+          "bg-[var(--color-muted)] text-[var(--color-text-muted)] border-[var(--color-border)]",
+        destructive:
+          "bg-[var(--color-error-bg)] text-[var(--color-error)] border-[var(--color-error)]/20",
+        outline:
+          "bg-transparent text-[var(--color-text-secondary)] border-[var(--color-border)]",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  }
 )
 
 export interface BadgeProps
