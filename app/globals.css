@@ -7,7 +7,7 @@
  * ======================================== */
 @theme {
   /* Font Families */
-  --font-sans: 'Plus Jakarta Sans', var(--font-jakarta), sans-serif;
+  --font-sans: 'DM Sans', var(--font-dm-sans), sans-serif;
   --font-display: 'Syne', var(--font-syne), sans-serif;
   --font-serif: 'Georgia', serif;
 
