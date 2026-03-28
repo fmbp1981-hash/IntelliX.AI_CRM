@@ -84,43 +84,29 @@ const DealCardComponent: React.FC<DealCardProps> = ({
     setLocalDragging(false);
   };
 
-  // Determine card styling based on won/lost status
   const getCardClasses = () => {
-    const baseClasses = `
-      p-3 rounded-lg border-l-4 border-y border-r
-      shadow-sm cursor-grab active:cursor-grabbing group hover:shadow-md transition-all relative select-none
-    `;
+    const baseClasses =
+      'p-3 rounded-[6px] border-l-4 border-y border-r cursor-grab active:cursor-grabbing group transition-all duration-150 relative select-none shadow-[0_1px_3px_rgba(0,0,0,0.06)]';
 
     if (deal.isWon) {
-      return `${baseClasses} 
-        bg-green-50 dark:bg-green-900/20 
-        border-green-200 dark:border-green-700/50
-        ${localDragging || isDragging ? 'opacity-50 rotate-2 scale-95' : ''}`;
+      return `${baseClasses} bg-[var(--color-success-bg)] border-[var(--color-success)]/30 ${localDragging || isDragging ? 'opacity-50 rotate-2 scale-95' : 'hover:shadow-[0_4px_8px_rgba(0,0,0,0.08)]'}`;
     }
 
     if (deal.isLost) {
-      return `${baseClasses} 
-        bg-red-50 dark:bg-red-900/20 
-        border-red-200 dark:border-red-700/50 
-        ${localDragging || isDragging ? 'opacity-50 rotate-2 scale-95' : 'opacity-70'}`;
+      return `${baseClasses} bg-[var(--color-error-bg)] border-[var(--color-error)]/30 ${localDragging || isDragging ? 'opacity-50 rotate-2 scale-95' : 'opacity-70 hover:opacity-90'}`;
     }
 
-    // Default - open deal
-    return `${baseClasses}
-      border-slate-200 dark:border-slate-700/50
-      ${localDragging || isDragging ? 'bg-green-100 dark:bg-green-900 opacity-50 rotate-2 scale-95' : 'bg-white dark:bg-slate-800 opacity-100'}
-      ${isRotting ? 'opacity-80 saturate-50 border-dashed' : ''}
-    `;
+    return `${baseClasses} bg-[var(--color-surface)] border-[var(--color-border)] ${localDragging || isDragging ? 'opacity-50 rotate-2 scale-95' : 'hover:shadow-[0_4px_8px_rgba(0,0,0,0.08)] hover:border-[var(--color-border-subtle)]'} ${isRotting ? 'opacity-80 saturate-50 border-dashed' : ''}`;
   };
 
   // Get border-left color class based on status
   const getBorderLeftClass = () => {
-    if (deal.isWon) return '!border-l-green-500';
-    if (deal.isLost) return '!border-l-red-500';
+    if (deal.isWon) return '!border-l-[var(--color-success)]';
+    if (deal.isLost) return '!border-l-[var(--color-error)]';
     // Priority-based colors for open deals
-    if (deal.priority === 'high') return '!border-l-red-500';
-    if (deal.priority === 'medium') return '!border-l-amber-500';
-    return '!border-l-blue-500';
+    if (deal.priority === 'high') return '!border-l-[var(--color-error)]';
+    if (deal.priority === 'medium') return '!border-l-[var(--color-warning)]';
+    return '!border-l-[var(--color-info)]';
   };
 
   // Build accessible label including visible text (tags)
@@ -177,7 +163,7 @@ const DealCardComponent: React.FC<DealCardProps> = ({
       {/* Won Badge */}
       {deal.isWon && (
         <div
-          className="absolute -top-2 -right-2 bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-200 p-1 rounded-full shadow-sm z-10 flex items-center gap-0.5"
+          className="absolute -top-2 -right-2 bg-[var(--color-success-bg)] text-[var(--color-success)] p-1 rounded-full shadow-sm z-10 flex items-center gap-0.5"
           aria-label="Negócio ganho"
         >
           <Trophy size={12} aria-hidden="true" />
@@ -187,7 +173,7 @@ const DealCardComponent: React.FC<DealCardProps> = ({
       {/* Lost Badge */}
       {deal.isLost && (
         <div
-          className="absolute -top-2 -right-2 bg-red-100 dark:bg-red-800 text-red-700 dark:text-red-200 p-1 rounded-full shadow-sm z-10 flex items-center gap-0.5"
+          className="absolute -top-2 -right-2 bg-[var(--color-error-bg)] text-[var(--color-error)] p-1 rounded-full shadow-sm z-10 flex items-center gap-0.5"
           aria-label={deal.lossReason ? `Perdido: ${deal.lossReason}` : 'Negócio perdido'}
         >
           <XCircle size={12} aria-hidden="true" />
@@ -197,7 +183,7 @@ const DealCardComponent: React.FC<DealCardProps> = ({
       {/* Rotting indicator - only for open deals */}
       {isRotting && !isClosed && (
         <div
-          className="absolute -top-2 -right-2 bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 p-1 rounded-full shadow-sm z-10"
+          className="absolute -top-2 -right-2 bg-[var(--color-warning-bg)] text-[var(--color-warning)] p-1 rounded-full shadow-sm z-10"
           aria-label="Negócio estagnado, mais de 10 dias sem atualização"
         >
           <Hourglass size={12} aria-hidden="true" />
@@ -207,12 +193,12 @@ const DealCardComponent: React.FC<DealCardProps> = ({
       <div className="flex gap-1 mb-2 flex-wrap">
         {/* Won/Lost status badge */}
         {deal.isWon && (
-          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-100 dark:bg-green-800/40 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-700">
+          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[var(--color-success-bg)] text-[var(--color-success)] border border-[var(--color-success)]/30">
             ✓ GANHO
           </span>
         )}
         {deal.isLost && (
-          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-800/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-700">
+          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[var(--color-error-bg)] text-[var(--color-error)] border border-[var(--color-error)]/30">
             ✗ PERDIDO
           </span>
         )}
@@ -220,7 +206,7 @@ const DealCardComponent: React.FC<DealCardProps> = ({
         {deal.tags.slice(0, isClosed ? 1 : 2).map((tag, index) => (
           <span
             key={`${deal.id}-tag-${index}`}
-            className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-white/5"
+            className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[var(--color-surface-subtle)] text-[var(--color-text-secondary)] border border-[var(--color-border)]"
           >
             {tag}
           </span>
@@ -228,15 +214,15 @@ const DealCardComponent: React.FC<DealCardProps> = ({
       </div>
 
       <h4
-        className={`text-sm font-bold font-display leading-snug mb-0.5 ${isRotting ? 'text-slate-600 dark:text-slate-400' : 'text-slate-900 dark:text-white'}`}
+        className={`text-sm font-bold font-display leading-snug mb-0.5 ${isRotting ? 'text-[var(--color-text-secondary)]' : 'text-[var(--color-text-primary)]'}`}
       >
         {deal.title}
       </h4>
-      <p className="text-xs text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-1">
+      <p className="text-xs text-[var(--color-text-secondary)] mb-3 flex items-center gap-1">
         <Building2 size={10} aria-hidden="true" /> {deal.companyName}
       </p>
 
-      <div className="flex justify-between items-center pt-2 border-t border-slate-100 dark:border-white/5">
+      <div className="flex justify-between items-center pt-2 border-t border-[var(--color-border)]">
         <div className="flex items-center gap-2">
           {deal.owner && deal.owner.name !== 'Sem Dono' && (
             deal.owner.avatar ? (
@@ -245,20 +231,20 @@ const DealCardComponent: React.FC<DealCardProps> = ({
                 alt={`Responsável: ${deal.owner.name}`}
                 width={20}
                 height={20}
-                className="w-5 h-5 rounded-full ring-1 ring-white dark:ring-slate-800"
+                className="w-5 h-5 rounded-full ring-1 ring-[var(--color-surface)]"
                 title={`Responsável: ${deal.owner.name}`}
                 unoptimized
               />
             ) : (
               <div
-                className="w-5 h-5 rounded-full bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 flex items-center justify-center text-[9px] font-bold ring-1 ring-white dark:ring-slate-800"
+                className="w-5 h-5 rounded-full bg-[var(--color-primary-bg)] text-[var(--color-primary)] flex items-center justify-center text-[9px] font-bold ring-1 ring-[var(--color-surface)]"
                 title={`Responsável: ${deal.owner.name}`}
               >
                 {getInitials(deal.owner.name)}
               </div>
             )
           )}
-          <span className="text-sm font-bold text-slate-700 dark:text-slate-200 font-mono">
+          <span className="text-sm font-bold text-[var(--color-text-primary)] font-mono">
             ${deal.value.toLocaleString()}
           </span>
         </div>
