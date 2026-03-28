@@ -16,8 +16,8 @@ export function BottomNav({ onOpenMore }: BottomNavProps) {
       aria-label="Navegação principal (mobile)"
       className={cn(
         'fixed inset-x-0 bottom-0 z-50 md:hidden',
-        'border-t border-slate-200 dark:border-white/10',
-        'bg-white/85 dark:bg-dark-card/85 backdrop-blur',
+        'border-t border-[var(--color-border)]',
+        'bg-[var(--color-surface)]/90 backdrop-blur supports-[backdrop-filter]:bg-[var(--color-surface)]/85',
         'pb-[var(--app-safe-area-bottom,0px)]'
       )}
     >
@@ -39,7 +39,7 @@ export function BottomNav({ onOpenMore }: BottomNavProps) {
                 className={cn(
                   'flex flex-1 flex-col items-center justify-center gap-1',
                   'text-xs font-medium',
-                  'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white',
+                  'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]',
                   'focus-visible-ring'
                 )}
               >
@@ -57,12 +57,12 @@ export function BottomNav({ onOpenMore }: BottomNavProps) {
                 'flex flex-1 flex-col items-center justify-center gap-1',
                 'text-xs font-medium focus-visible-ring',
                 isActive
-                  ? 'text-primary-600 dark:text-primary-400'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                  ? 'text-[var(--color-accent)]'
+                  : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
               )}
               aria-current={isActive ? 'page' : undefined}
             >
-              <Icon className={cn('h-5 w-5', isActive ? 'text-primary-500' : '')} aria-hidden="true" />
+              <Icon className={cn('h-5 w-5', isActive ? 'text-[var(--color-accent)]' : '')} aria-hidden="true" />
               <span className="font-display tracking-wide">{item.label}</span>
             </Link>
           );
