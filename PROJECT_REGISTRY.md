@@ -2,7 +2,7 @@
 
 > **Documento Vivo:** Atualizado a cada modificação significativa.
 > **Última Atualização:** 28 de Março de 2026 (BRT)
-> **Versão do Registro:** 2.5
+> **Versão do Registro:** 2.6
 
 ---
 
@@ -249,6 +249,42 @@ IntelliX.AI_CRM/
 font-family: 'DM Sans' (body), 'DM Mono' (code)
 ```
 
+### 4.8 Customer Intelligence Profile + AI Nurturing (PLANEJADO — branch `feature/nossoagent`)
+
+> **Spec:** `docs/superpowers/specs/2026-03-28-customer-intelligence-design.md`
+> **Status:** 🔵 Design aprovado, implementação pendente (8 fases)
+
+**Objetivo:** Sistema de perfil comportamental de clientes com IA para nurturing personalizado e reativação de leads frios.
+
+| Subsistema | Status | Descrição |
+|---|---|---|
+| **Contact Behavioral Profile** | ⏳ Fase 1 | Tabela `contact_behavioral_profile` — ticket médio, RFM score, produtos preferidos, sazonalidade, risco de churn |
+| **Sentiment Analysis** | ⏳ Fase 3 | Análise de sentimento por mensagem no Agent Engine (Step 14.5), flags visuais no Kanban |
+| **Closing Probability** | ⏳ Fase 3 | % de fechamento por deal (5 fatores: sentimento, engajamento, qualificação, velocidade, RFM) |
+| **AI Nurturing Engine** | ⏳ Fase 5 | Geração de sugestões (Modo B: humano aprova / Modo A: automático opt-in) |
+| **Nurturing Dashboard** | ⏳ Fase 6 | Página `/nutricao` — aprovar/editar/dispensar sugestões por urgência |
+| **Campaign Segmentation by Stage** | ⏳ Fase 7 | Segmentos: pipeline_stage, reactivation, ready_for_proposal |
+| **Pipeline Triggers** | ⏳ Fase 8 | Ações automáticas ao entrar em stage: email, WhatsApp, tarefa, notificação |
+
+**Tipos de sugestão de nurturing:**
+- 🔴 Reativação — cliente parado há > 45 dias
+- 🟡 Sazonal — época histórica de compra
+- 🟢 Upsell — produto complementar ao perfil
+- 🔵 Sentiment Recovery — sentimento negativo + deal aberto
+- ⚪ Follow-up — deal parado no funil > 7 dias
+
+**Badges visuais no Kanban (DealCard):**
+- Sentimento: 😄 Verde | 😐 Amarelo | 😠 Vermelho
+- % Fechamento: 🟢 ≥70% | 🟡 30-69% | 🔴 <30%
+
+### 4.9 Skills Atualizadas (28/03/2026)
+
+| Skill | Atualização |
+|---|---|
+| **intellix-agent-creation** | +6 módulos: Humanização real-time (delays, typing, read receipts, message chunking), Multimodal (audio/imagem/doc/vídeo), RAG detalhado (chunking/embeddings/retrieval), Lead Management Schema (function calling), Fallback Messages, Channel Interface Standards |
+| **SKILL-chat-inteligente** | +7 seções: Testing & QA, Escalabilidade, Compliance LGPD/GDPR, Analytics por canal, Migration Guide, Padrões Avançados (multi-model fallback, sentiment escalation), Omnichannel Best Practices |
+| **humanizer-main** | Analisada — 24 anti-patterns de escrita IA incorporados como regras no módulo de humanização da intellix-agent-creation |
+
 ---
 
 ## 5. Migrations (Histórico Cronológico)
@@ -404,6 +440,22 @@ font-family: 'DM Sans' (body), 'DM Mono' (code)
 ---
 
 ## 11. Histórico de Alterações (Changelog)
+
+### 28/03/2026 (v2.6) — Customer Intelligence + Sentiment Analysis + AI Nurturing (Design Phase)
+
+- **Branch:** `feature/nossoagent`
+- **Contexto:** Crosscheck competitivo (Yup.ai + DUMA CRM) revelou gaps críticos: perfil comportamental de cliente, análise de sentimento, segmentação por stage e triggers de pipeline. Design completo aprovado com 8 fases de implementação.
+- **O que mudou:**
+  - **Design aprovado:** Customer Intelligence Profile com RFM scoring, ticket médio, produtos preferidos, sazonalidade, risco de churn
+  - **Sentiment Analysis:** Step 14.5 no Agent Engine — análise de sentimento por mensagem, closing probability calculator (5 fatores), badges visuais no Kanban
+  - **AI Nurturing:** Modo B (sugestão humana, default) + Modo A (automático, opt-in). 5 tipos: reativação, sazonal, upsell, sentiment recovery, follow-up
+  - **Campaign Segmentation:** Novos segmentos por pipeline_stage, reactivation (deals parados > N dias), ready_for_proposal (closing_probability ≥ 70%)
+  - **Pipeline Triggers:** Ações automáticas ao mudar de stage (email, WhatsApp, tarefa, notificação, tag)
+  - **Skills atualizadas:** intellix-agent-creation (+6 módulos), SKILL-chat-inteligente (+7 seções), humanizer (24 anti-patterns incorporados)
+- **Spec:** `docs/superpowers/specs/2026-03-28-customer-intelligence-design.md` (a gerar)
+- **Plano de implementação:** 8 fases (Schema → Compute Engine → Sentiment → Kanban UI → Nurturing Engine → Nurturing UI → Campaigns → Pipeline Triggers)
+
+---
 
 ### 24–28/03/2026 (v2.5) — Design System Enterprise Sharp — Migração de Tokens
 
