@@ -1,8 +1,8 @@
 # PROJECT_REGISTRY.md — NossoCRM (IntelliX.AI_CRM)
 
 > **Documento Vivo:** Atualizado a cada modificação significativa.
-> **Última Atualização:** 15 de Março de 2026 (23:30 BRT)
-> **Versão do Registro:** 2.4
+> **Última Atualização:** 28 de Março de 2026 (BRT)
+> **Versão do Registro:** 2.5
 
 ---
 
@@ -162,10 +162,10 @@ IntelliX.AI_CRM/
 | **3 — Agent Engine Core** | ✅ Completo | `agent-engine/index.ts` (14-step pipeline) |
 | **4 — Agent Tools** | ✅ Completo | `lib/ai/agent-tools.ts` (12 tools: contacts, deals, activities, qualification, transfer, vertical) |
 | **5 — Frontend Chat** | ✅ Completo | `ConversationsPage.tsx`, `MessageBubble.tsx`, `ConversationsList.tsx`, `ConversationChat.tsx`, `ConversationContext.tsx` |
-| **6 — Config UI** | ✅ Completo | `AgentConfigPage.tsx` (6 tabs: Connection, Behavior, Hours, Qualification, Transfer, Metrics) |
-| **7 — CRM Integrations** | ✅ Completo | Inbox, Webhooks, AI Governance |
-| **8 — Media + Extras** | ✅ Completo | Media handler, resumo, métricas |
-| **9 — Polish + QA** | ✅ Completo | Testes, edge cases |
+| **6 — Config UI** | ✅ Completo | `AgentConfigPage.tsx` (10 abas: Connection, Behavior, Hours, Qualification, Transfer, Metrics + 4 IA Avançada) |
+| **7 — CRM Integrations** | ✅ Completo | Bridge Inbox, Webhooks inbound, AI Governance quota check no engine |
+| **8 — Media + Extras** | ✅ Completo | `agent-media-handler` (transcrição áudio, análise imagem), `agent-summary` diário, métricas via `agent_performance_metrics` |
+| **9 — Polish + QA** | ✅ Completo | Testes E2E (RAG + nurturing), concurrency lock no engine, proteção contra prompt injection, correções webhook |
 
 ### 4.4b NossoAgent Inbox — Chat de Atendimento Omnichannel (branch `feature/nossoagent`)
 
@@ -212,6 +212,42 @@ IntelliX.AI_CRM/
 **Datas comemorativas suportadas:** `birthday`, `womens_day` (💜 8/mar, feminino), `mothers_day` (🌸 2º domingo de maio, feminino), `fathers_day` (👨‍👧 2º domingo de agosto, masculino), `valentines_day` (❤️ 12/jun), `christmas` (🎄 25/dez), `new_year` (🎆 1/jan), `customer_day` (🤝 15/set), `custom`
 
 **VIP Score:** `(won_deals_value × 0.7) + (activities_count × 100 × 0.3)` — ordenado descendente
+
+### 4.7 Design System — Enterprise Sharp (branch `feature/nossoagent`)
+
+> **Plano:** `docs/superpowers/specs/enterprise_sharp_redesign_plan.md`
+> **Design Language:** Enterprise Sharp — interface escura lateral, topbar clara, tipografia DM Sans, tokens semânticos.
+
+| Componente | Status | Commits | Descrição |
+|---|---|---|---|
+| **globals.css — bridge shadcn + tokens sidebar** | ✅ Completo | `cb2c218` | Variáveis CSS `sidebar-*` sempre-dark; bridge para componentes shadcn/ui; remoção de `ring-offset-background` undefined |
+| **Tipografia (DM Sans)** | ✅ Completo | `c686728` | Substituição de Plus Jakarta Sans → DM Sans como fonte body principal; atualização de `globals.css` + `next/font/google` |
+| **Button — variantes Enterprise Sharp** | ✅ Completo | `dd24536` | Reescrita total: `default`, `secondary`, `destructive`, `outline`, `ghost`, `link` com tokens de cor semânticos; border-radius sharp (2px); hover/focus com token |
+| **Badge — 5 variantes semânticas** | ✅ Completo | `01fd7bd` | Variantes: `default`, `success`, `warning`, `error`, `info`; border-radius sharp; uso de tokens `badge-*` |
+| **Card, Avatar, Tabs** | ✅ Completo | `a8ab5c2` | Migração de cores hardcoded slate/zinc para tokens `card-*`, `avatar-*`, `tabs-*`; remoção de backgrounds opacos |
+| **Sidebar escura (dark forced)** | ✅ Completo | `b78edf4` | `NavigationRail` e `Layout` sidebar forçados dark com tokens `sidebar-bg`, `sidebar-fg`, `sidebar-accent`; topbar sempre branca com `topbar-bg`; breadcrumb no topbar |
+| **NavigationRail + BottomNav** | ✅ Completo | `de265e7` | Tokens `nav-*` em todos os estados (default, active, hover); ícones com opacidade semântica |
+| **StatCard → KPI Card** | ✅ Completo | `655ff28` | Redesign como KPI card com `border-top` colorido por categoria; remoção de blur circle decorativo; layout compacto |
+| **DealCard** | ✅ Completo | `e1a1ed8` | Migração de `slate-*`, `green-*`, `red-*` hardcoded → tokens `deal-*`; badges de status com variantes semânticas |
+
+**Componentes pendentes (~30%):**
+- InputField, Select, Textarea (form controls)
+- Table, DataGrid
+- Modal/Dialog, Sheet
+- Toast/Alert
+- Demais feature cards (ContactCard, ActivityItem, etc.)
+
+**Tokens implementados:**
+```css
+/* Sidebar (sempre dark) */
+--sidebar-bg, --sidebar-fg, --sidebar-accent, --sidebar-border
+/* Topbar (sempre claro) */
+--topbar-bg, --topbar-fg, --topbar-border
+/* Componentes */
+--card-bg, --card-border, --badge-*, --button-*, --deal-*
+/* Tipografia */
+font-family: 'DM Sans' (body), 'DM Mono' (code)
+```
 
 ---
 
@@ -360,14 +396,47 @@ IntelliX.AI_CRM/
 |---|---|---|
 | `docs/PRD_COMPLEMENTAR_NossoCRM_v1.md` | 10 módulos complementares (P0-P3) | Fase 1 (P0) implementada |
 | `NossoCRM_PRD_Verticalizacao_Multi-Nicho.md` | Verticalização: 3 nichos + infraestrutura | ✅ Fases 1-8 completas |
-| `NossoCRM_PRD_NossoAgent_IA_Nativo.md` | IA nativa avançada (NossoAgent) — 9 fases, ~11.5 semanas | 🟡 Próximo: implementação |
-| `NossoCRM_PRD_NossoAgent_Followups_Nurturing.md` | Follow-ups automatizados + nurturing — 7 fases, ~9.5 semanas | ⏳ Após NossoAgent Fases 1-3 |
-| `NossoCRM_PRD_NossoAgent_KnowledgeBase_RAG.md` | Knowledge Base + RAG + Catálogo — 6 fases, ~7.5 semanas | ⏳ Após NossoAgent Fases 1-3 |
-| `NossoCRM_PRD_MultiAgent_SalesMethodology.md` | Multi-Agent Methodology System — 23 agentes especializados, 4 verticais, 6 fases, ~10 semanas | 🔄 Fases 1-4 concluídas, Fase 5 planejada |
+| `NossoCRM_PRD_NossoAgent_IA_Nativo.md` | IA nativa avançada (NossoAgent) — 9 fases, ~11.5 semanas | ✅ Fases 1-9 concluídas (infra + engine + UI + inbox + media + QA) |
+| `NossoCRM_PRD_NossoAgent_Followups_Nurturing.md` | Follow-ups automatizados + nurturing — 7 fases, ~9.5 semanas | ✅ Fundações implementadas (regras, sequências, nurturing-cron, process-followups) |
+| `NossoCRM_PRD_NossoAgent_KnowledgeBase_RAG.md` | Knowledge Base + RAG + Catálogo — 6 fases, ~7.5 semanas | ✅ Infraestrutura completa (pgvector, match_knowledge, Business Profile Editor, prompt builder integrado) |
+| `NossoCRM_PRD_MultiAgent_SalesMethodology.md` | Multi-Agent Methodology System — 23 agentes especializados, 4 verticais, 6 fases, ~10 semanas | ✅ Todas as 6 fases concluídas |
 
 ---
 
 ## 11. Histórico de Alterações (Changelog)
+
+### 24–28/03/2026 (v2.5) — Design System Enterprise Sharp — Migração de Tokens
+
+- **Branch:** `feature/nossoagent`
+- **Contexto:** Implementação do design language "Enterprise Sharp" — interface de produto com sidebar escura, topbar clara, tipografia DM Sans e sistema de tokens semânticos. Elimina todas as cores hardcoded do Tailwind por variáveis CSS reutilizáveis.
+- **O que mudou:**
+  - **`globals.css` — CSS bridge + tokens sidebar** (`cb2c218`): Adicionados tokens CSS `--sidebar-*` com força de dark mode. Bridge para componentes shadcn/ui herdar tokens. Remoção de `ring-offset-background` undefined que causava warnings.
+  - **DM Sans como fonte padrão** (`c686728`): Substituição de Plus Jakarta Sans → DM Sans via `next/font/google`. Mais legível em densidades altas de dados.
+  - **Button reescrito** (`dd24536`): 6 variantes (default, secondary, destructive, outline, ghost, link) com tokens semânticos. `border-radius: 2px` (sharp). Hover/focus states por token.
+  - **Badge reescrito** (`01fd7bd`): 5 variantes semânticas (default, success, warning, error, info). Border-radius sharp. Tokens `badge-*`.
+  - **Card, Avatar, Tabs** (`a8ab5c2`): Remoção de hardcoded `slate-*` e `zinc-*`. Uso de `card-bg`, `card-border`, tokens de avatar e tabs.
+  - **Sidebar dark forçada + topbar branca** (`b78edf4`): `NavigationRail` e `Layout` com tokens `sidebar-*` independente do tema do sistema. Topbar sempre clara com `topbar-bg`. Breadcrumb adicionado ao topbar.
+  - **Fix `ring-offset-background`** (`0143d42`): Removida referência a variável CSS não definida em `TabsContent`.
+  - **NavigationRail + BottomNav** (`de265e7`): Todos os estados (default, ativo, hover) via tokens `nav-*`. Ícones com opacidade semântica.
+  - **StatCard → KPI Card** (`655ff28`): Redesign como KPI card com borda superior colorida por categoria (receita, pipeline, clientes, conversão). Blur decorativo removido. Layout mais compacto e legível.
+  - **DealCard** (`e1a1ed8`): Migração completa de `slate-500`, `green-500`, `red-500` para tokens `deal-status-*`. Badges de status usam variantes semânticas do Badge reescrito.
+- **Arquivos criados/modificados:**
+  - `app/globals.css` (modificado — bridge tokens + sidebar-* + DM Sans)
+  - `tailwind.config.js` (modificado — tokens no tema, DM Sans registrada — **pendente commit**)
+  - `components/ui/button.tsx` (modificado — reescrita completa)
+  - `components/ui/badge.tsx` (modificado — reescrita completa)
+  - `components/ui/card.tsx` (modificado — tokens)
+  - `components/ui/avatar.tsx` (modificado — tokens)
+  - `components/ui/tabs.tsx` (modificado — tokens + fix ring-offset)
+  - `components/Layout.tsx` (modificado — sidebar tokens)
+  - `components/navigation/NavigationRail.tsx` (modificado — nav tokens)
+  - `components/navigation/BottomNav.tsx` (modificado — nav tokens)
+  - `features/dashboard/components/StatCard.tsx` (modificado — KPI card redesign)
+  - `features/boards/components/DealCard.tsx` (modificado — deal tokens)
+  - `docs/superpowers/specs/enterprise_sharp_redesign_plan.md` (novo — plano completo)
+- **Estado:** ~70% concluído. Pendente: form controls (Input, Select, Textarea), Table/DataGrid, Modal/Dialog, Toast/Alert, demais feature cards.
+
+---
 
 ### 15/03/2026 (v2.3/v2.4) — Radar de Clientes — Inteligência de Relacionamento
 
@@ -592,10 +661,16 @@ IntelliX.AI_CRM/
 
 | Branch | Status | Base | Descrição |
 |---|---|---|---|
-| `main` | Produção | — | Core CRM estável |
-| `feature/prd-complementar-implementation` | Mergeada em main | `main` | PRD Complementar P0 |
-| `feature/verticalizacao-multi-nicho` | **Completa** (pendente merge) | `main` (pós-merge) | Verticalização — Fases 1-8 completas |
-| `feature/nossoagent` | **Próxima** | `main` (pós-merge vertical) | NossoAgent IA Nativo — implementação do PRD principal |
+| `main` | Produção | — | Core CRM estável + PRD Complementar + Verticalizações mergeadas |
+| `feature/prd-complementar-implementation` | ✅ Mergeada em main | `main` | PRD Complementar P0 — Concluída |
+| `feature/verticalizacao-multi-nicho` | ✅ Mergeada em main | `main` | Verticalização Fases 1-8 — Concluída |
+| `feature/nossoagent` | 🔄 **ATIVA (branch atual)** | `main` (pós-merge) | NossoAgent completo (Fases 1-9) + Multi-Agent Methodology (6 fases) + Radar de Clientes + Email Campaigns + Design System Enterprise Sharp (~70%) |
+
+**Estado atual da branch `feature/nossoagent` (28/03/2026):**
+- Último commit: `e1a1ed8` — feat: migrate DealCard to design tokens
+- Uncommitted: `tailwind.config.js` (tokens do design system — pendente commit)
+- Untracked: `app/api/webhooks/`, `lib/evolution/`, `docs/superpowers/specs/` (pendente integração)
+- Próximo: completar migração de design tokens (~30% restante) → commit `tailwind.config.js` → planejar próximas features
 
 ---
 
