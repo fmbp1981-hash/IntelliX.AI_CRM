@@ -94,6 +94,19 @@ export const queryKeys = {
         byConversation: (conversationId: string) => [...base.all, 'conversation', conversationId] as const,
         byDeal: (dealId: string) => [...base.all, 'deal', dealId] as const,
     })),
+
+    customerIntelligence: createExtendedQueryKeys('customerIntelligence', base => ({
+        byContact: (contactId: string) => [...base.all, 'contact', contactId] as const,
+    })),
+
+    nurturing: createExtendedQueryKeys('nurturing', base => ({
+        pending: () => [...base.all, 'pending'] as const,
+        byUrgency: (urgency: string) => [...base.all, 'urgency', urgency] as const,
+    })),
+
+    pipelineTriggers: createExtendedQueryKeys('pipelineTriggers', base => ({
+        byBoard: (boardId: string) => [...base.all, 'board', boardId] as const,
+    })),
 };
 
 /**
