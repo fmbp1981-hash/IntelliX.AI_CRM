@@ -76,18 +76,11 @@ CREATE INDEX IF NOT EXISTS idx_cbp_rfm
 CREATE INDEX IF NOT EXISTS idx_cbp_churn
   ON public.contact_behavioral_profile(organization_id, churn_risk);
 
--- Trigger: keep updated_at current
-CREATE OR REPLACE FUNCTION update_contact_behavioral_profile_updated_at()
-RETURNS TRIGGER LANGUAGE plpgsql AS $$
-BEGIN
-  NEW.updated_at = now();
-  RETURN NEW;
-END;
-$$;
-
+-- Use shared updated_at trigger function
+DROP TRIGGER IF EXISTS trg_cbp_updated_at ON public.contact_behavioral_profile;
 CREATE TRIGGER trg_cbp_updated_at
   BEFORE UPDATE ON public.contact_behavioral_profile
-  FOR EACH ROW EXECUTE FUNCTION update_contact_behavioral_profile_updated_at();
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ── 2. Extend deals table ──────────────────────────────────────────────────
 
