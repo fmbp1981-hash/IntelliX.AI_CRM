@@ -353,7 +353,7 @@ export type QualificationStatus =
     | 'qualified'
     | 'unqualified';
 
-export type Sentiment = 'positive' | 'neutral' | 'negative';
+export type Sentiment = 'very_positive' | 'positive' | 'neutral' | 'negative' | 'very_negative';
 
 export interface Conversation {
     id: string;
@@ -377,6 +377,8 @@ export interface Conversation {
     tags: string[];
     detected_intent: string | null;
     sentiment: Sentiment;
+    sentiment_score: number;
+    sentiment_history: import('./customer-intelligence').SentimentEntry[];
 
     last_message_at: string | null;
     last_ai_response_at: string | null;
