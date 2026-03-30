@@ -1125,6 +1125,117 @@ serve(async (req: Request) => {
             history.length + 1
         );
 
+        // ── Step 14.5: Sentiment Analysis + Closing Probability ──
+        try {
+            const { generateObject } = await import('https://esm.sh/ai@4');
+            const { anthropic } = await import('https://esm.sh/@ai-sdk/anthropic@1');
+            const { z } = await import('https://esm.sh/zod@3');
+
+            const sentimentResult = await generateObject({
+                model: anthropic('claude-haiku-4-5-20251001'),
+                schema: z.object({
+                    sentiment: z.enum(['very_positive', 'positive', 'neutral', 'negative', 'very_negative']),
+                    score: z.number().min(-100).max(100),
+                }),
+                prompt: `Classifique o sentimento desta mensagem de cliente em pt-BR.
+Escala: very_positive(+80/+100), positive(+30/+79), neutral(-29/+29), negative(-79/-30), very_negative(-100/-80).
+Mensagem: "${finalMessageContent.slice(0, 300)}"`,
+            });
+
+            const newSentiment = sentimentResult.object;
+
+            const sentimentEntry = {
+                timestamp: new Date().toISOString(),
+                score: newSentiment.score,
+                trigger: finalMessageContent.slice(0, 80),
+            };
+
+            const { data: convData } = await supabase
+                .from('conversations')
+                .select('sentiment_history')
+                .eq('id', conversation.id)
+                .single();
+
+            const history14 = Array.isArray(convData?.sentiment_history)
+                ? [...convData.sentiment_history, sentimentEntry].slice(-20)
+                : [sentimentEntry];
+
+            await supabase.from('conversations').update({
+                sentiment: newSentiment.sentiment,
+                sentiment_score: newSentiment.score,
+                sentiment_history: history14,
+            }).eq('id', conversation.id);
+
+            if (conversation.deal_id) {
+                const { data: profile } = await supabase
+                    .from('contact_behavioral_profile')
+                    .select('rfm_recency, rfm_frequency, rfm_monetary')
+                    .eq('contact_id', conversation.contact_id)
+                    .maybeSingle();
+
+                const rfmScore = profile
+                    ? (profile.rfm_recency ?? 3) + (profile.rfm_frequency ?? 3) + (profile.rfm_monetary ?? 3)
+                    : 9;
+
+                const { count: totalMsgs } = await supabase
+                    .from('messages')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('conversation_id', conversation.id);
+
+                const { count: clientMsgs } = await supabase
+                    .from('messages')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('conversation_id', conversation.id)
+                    .eq('role', 'lead');
+
+                const { data: deal14 } = await supabase
+                    .from('deals')
+                    .select('last_stage_change_date')
+                    .eq('id', conversation.deal_id)
+                    .single();
+
+                const daysInStage = deal14?.last_stage_change_date
+                    ? Math.floor((Date.now() - new Date(deal14.last_stage_change_date).getTime()) / 86400000)
+                    : 0;
+
+                const qualData = conversation.qualification_data ?? {};
+                const qualFilled = Object.values(qualData).filter(Boolean).length;
+                const qualTotal = Math.max(qualFilled, 4);
+
+                const sentimentFactor = Math.round((newSentiment.score + 100) / 2);
+                const engagementFactor = (totalMsgs ?? 1) > 0 ? Math.round(((clientMsgs ?? 0) / (totalMsgs ?? 1)) * 100) : 0;
+                const qualificationFactor = qualTotal > 0 ? Math.round((qualFilled / qualTotal) * 100) : 50;
+                const stageVelocityFactor = Math.max(0, 100 - daysInStage * 5);
+                const rfmFactor = Math.round(((rfmScore - 3) / 12) * 100);
+
+                const factors = {
+                    sentiment: sentimentFactor,
+                    engagement: engagementFactor,
+                    qualification: qualificationFactor,
+                    stage_velocity: stageVelocityFactor,
+                    rfm: rfmFactor,
+                };
+                const probability = Math.max(0, Math.min(100, Math.round(
+                    factors.sentiment * 0.25 + factors.engagement * 0.20 +
+                    factors.qualification * 0.25 + factors.stage_velocity * 0.15 +
+                    factors.rfm * 0.15
+                )));
+
+                await supabase.from('deals').update({
+                    closing_probability: probability,
+                    closing_factors: factors,
+                }).eq('id', conversation.deal_id);
+            }
+
+            // Escalation: 3 consecutive very_negative
+            const recentNeg = history14.slice(-3);
+            if (recentNeg.length === 3 && recentNeg.every((e: { score: number }) => e.score <= -80)) {
+                console.log(`[Sentiment Escalation] Conv ${conversation.id}: 3x very_negative, recommend human handoff`);
+            }
+        } catch (sentimentErr) {
+            console.error('[Step 14.5] Sentiment analysis failed (non-blocking):', sentimentErr);
+        }
+
         // ── Step 14: Update conversation timestamp and unlock ──
         await supabase
             .from('conversations')
