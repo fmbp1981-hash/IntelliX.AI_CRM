@@ -28,10 +28,10 @@ CREATE TABLE IF NOT EXISTS public.nurturing_suggestions (
   title             TEXT NOT NULL,
   reason            TEXT NOT NULL,
   suggested_message TEXT NOT NULL,
-  channel           TEXT DEFAULT 'whatsapp' CHECK (channel IN ('whatsapp', 'email')),
+  channel           TEXT NOT NULL DEFAULT 'whatsapp' CHECK (channel IN ('whatsapp', 'email')),
 
-  auto_send    BOOLEAN DEFAULT false,
-  status       TEXT DEFAULT 'pending' CHECK (status IN (
+  auto_send    BOOLEAN NOT NULL DEFAULT false,
+  status       TEXT NOT NULL DEFAULT 'pending' CHECK (status IN (
                  'pending', 'approved', 'sent', 'dismissed', 'snoozed'
                )),
 
@@ -43,12 +43,11 @@ CREATE TABLE IF NOT EXISTS public.nurturing_suggestions (
 
 ALTER TABLE public.nurturing_suggestions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "org_isolation" ON public.nurturing_suggestions;
 CREATE POLICY "org_isolation" ON public.nurturing_suggestions
-  FOR ALL USING (
-    organization_id = (
-      SELECT organization_id FROM public.profiles WHERE id = auth.uid()
-    )
-  );
+  FOR ALL
+  USING (organization_id = (SELECT organization_id FROM public.profiles WHERE id = auth.uid()))
+  WITH CHECK (organization_id = (SELECT organization_id FROM public.profiles WHERE id = auth.uid()));
 
 CREATE INDEX IF NOT EXISTS idx_ns_org_status
   ON public.nurturing_suggestions(organization_id, status);
@@ -80,19 +79,18 @@ CREATE TABLE IF NOT EXISTS public.pipeline_triggers (
 
   actions JSONB NOT NULL DEFAULT '[]',
 
-  active     BOOLEAN DEFAULT true,
+  active     BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
 ALTER TABLE public.pipeline_triggers ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "org_isolation" ON public.pipeline_triggers;
 CREATE POLICY "org_isolation" ON public.pipeline_triggers
-  FOR ALL USING (
-    organization_id = (
-      SELECT organization_id FROM public.profiles WHERE id = auth.uid()
-    )
-  );
+  FOR ALL
+  USING (organization_id = (SELECT organization_id FROM public.profiles WHERE id = auth.uid()))
+  WITH CHECK (organization_id = (SELECT organization_id FROM public.profiles WHERE id = auth.uid()));
 
 CREATE INDEX IF NOT EXISTS idx_pt_board_stage
   ON public.pipeline_triggers(board_id, stage_id, trigger_event);
@@ -106,4 +104,4 @@ CREATE TRIGGER trg_pt_updated_at
 
 ALTER TABLE public.organizations
   ADD COLUMN IF NOT EXISTS nurturing_auto_mode       BOOLEAN DEFAULT false,
-  ADD COLUMN IF NOT EXISTS nurturing_max_auto_per_day INT DEFAULT 2;
+  ADD COLUMN IF NOT EXISTS nurturing_max_auto_per_day INT DEFAULT 2 CHECK (nurturing_max_auto_per_day >= 0);

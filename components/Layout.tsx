@@ -52,6 +52,7 @@ import {
   PanelLeftOpen,
   MessageCircle,
   Radar,
+  Sparkles,
 } from 'lucide-react';
 import { useCRM } from '../context/CRMContext';
 import { useAuth } from '../context/AuthContext';
@@ -74,6 +75,7 @@ const ROUTE_LABELS: Record<string, string> = {
   inbox: 'Inbox',
   atendimento: 'Atendimento',
   radar: 'Radar',
+  nutricao: 'Nutrição de Leads',
   dashboard: 'Visão Geral',
   boards: 'Boards',
   pipeline: 'Pipeline',
@@ -298,6 +300,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               { to: '/inbox', icon: Inbox, label: 'Inbox', prefetch: 'inbox' as const },
               { to: '/atendimento', icon: MessageCircle, label: 'Atendimento', prefetch: 'atendimento' as const },
               { to: '/radar', icon: Radar, label: 'Radar', prefetch: 'radar' as const },
+              { to: '/nutricao', icon: Sparkles, label: 'Nutrição', prefetch: 'nutricao' as const },
               { to: '/dashboard', icon: LayoutDashboard, label: 'Visão Geral', prefetch: 'dashboard' as const },
               { to: '/boards', icon: KanbanSquare, label: 'Boards', prefetch: 'boards' as const },
               { to: '/contacts', icon: Users, label: 'Contatos', prefetch: 'contacts' as const },
