@@ -245,6 +245,7 @@ export interface Deal {
   productCategory?: string;
   closingProbability?: number;
   closingFactors?: import('./customer-intelligence').ClosingFactors;
+  sentiment?: import('./customer-intelligence').SentimentLevel;
 
   // @deprecated - Use clientCompanyId instead
   companyId?: string;
