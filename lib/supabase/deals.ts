@@ -16,6 +16,7 @@
 
 import { supabase } from './client';
 import { Deal, DealItem, OrganizationId } from '@/types';
+import type { ClosingFactors } from '@/types/customer-intelligence';
 import { sanitizeUUID, requireUUID, isValidUUID } from './utils';
 
 // =============================================================================
@@ -183,7 +184,7 @@ const transformDeal = (db: DbDeal, items: DbDealItem[]): Deal => {
     productName: db.product_name || undefined,
     productCategory: db.product_category || undefined,
     closingProbability: db.closing_probability ?? undefined,
-    closingFactors: db.closing_factors ?? undefined,
+    closingFactors: db.closing_factors ? (db.closing_factors as unknown as ClosingFactors) : undefined,
   };
 };
 
