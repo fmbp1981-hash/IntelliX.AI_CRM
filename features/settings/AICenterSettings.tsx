@@ -7,6 +7,8 @@ import { AIConfigSection } from './components/AIConfigSection';
 import { AIFeaturesSection } from './components/AIFeaturesSection';
 import { AIGovernanceDashboard } from './components/AIGovernanceDashboard';
 import { AIQuotaSettings } from './components/AIQuotaSettings';
+import { AgentSettingsSection } from './components/AgentSettingsSection';
+import { KnowledgeBaseSection } from './components/KnowledgeBaseSection';
 
 /**
  * Componente React `AICenterSettings`.
@@ -59,6 +61,10 @@ export const AICenterSettings: React.FC = () => {
       </div>
 
       <AIConfigSection />
+
+      <AgentSettingsSection />
+
+      <KnowledgeBaseSection />
 
       <div className="mt-6">
         <AIFeaturesSection />

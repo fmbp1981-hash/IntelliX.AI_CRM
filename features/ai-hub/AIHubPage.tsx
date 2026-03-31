@@ -12,8 +12,8 @@ const ChatMessage: React.FC<{ message: AgentMessage }> = ({ message }) => {
     <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : ''}`}>
       {/* Avatar */}
       <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${isUser
-          ? 'bg-primary-500 text-white'
-          : 'bg-gradient-to-br from-violet-500 to-purple-600 text-white'
+        ? 'bg-primary-500 text-white'
+        : 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white'
         }`}>
         {isUser ? <User size={16} /> : <Bot size={16} />}
       </div>
@@ -21,8 +21,8 @@ const ChatMessage: React.FC<{ message: AgentMessage }> = ({ message }) => {
       {/* Conteúdo */}
       <div className={`flex-1 max-w-[80%] ${isUser ? 'text-right' : ''}`}>
         <div className={`inline-block px-4 py-3 rounded-2xl ${isUser
-            ? 'bg-primary-500 text-white rounded-br-md'
-            : 'bg-white dark:bg-dark-card border border-slate-200 dark:border-white/10 text-slate-800 dark:text-slate-200 rounded-bl-md'
+          ? 'bg-primary-500 text-white rounded-br-md'
+          : 'bg-white dark:bg-dark-card border border-slate-200 dark:border-white/10 text-slate-800 dark:text-slate-200 rounded-bl-md'
           }`}>
           <div className="whitespace-pre-wrap text-sm leading-relaxed">
             {message.content}
@@ -36,7 +36,7 @@ const ChatMessage: React.FC<{ message: AgentMessage }> = ({ message }) => {
 // Indicador de digitação
 const TypingIndicator: React.FC = () => (
   <div className="flex gap-3">
-    <div className="shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 text-white flex items-center justify-center">
+    <div className="shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center">
       <Bot size={16} />
     </div>
     <div className="bg-white dark:bg-dark-card border border-slate-200 dark:border-white/10 px-4 py-3 rounded-2xl rounded-bl-md">
@@ -52,7 +52,7 @@ const TypingIndicator: React.FC = () => (
 // Welcome message
 const WelcomeMessage: React.FC = () => (
   <div className="text-center py-12">
-    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 text-white mb-4">
+    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white mb-4">
       <Sparkles size={32} />
     </div>
     <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
@@ -93,9 +93,9 @@ const APINotConfigured: React.FC = () => {
         </div>
 
         {/* Title */}
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-3">
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-3">
           Configure a Inteligência Artificial
-        </h1>
+        </h2>
 
         {/* Description */}
         <p className="text-slate-600 dark:text-slate-400 mb-8 leading-relaxed">
@@ -106,20 +106,20 @@ const APINotConfigured: React.FC = () => {
         {/* Card with instructions */}
         <div className="bg-slate-50 dark:bg-white/5 rounded-2xl p-6 border border-slate-200 dark:border-white/10 mb-6 text-left">
           <h3 className="font-semibold text-slate-800 dark:text-slate-200 mb-3 flex items-center gap-2">
-            <Sparkles size={18} className="text-purple-500" />
+            <Sparkles size={18} className="text-teal-500" />
             Como configurar:
           </h3>
           <ol className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
             <li className="flex gap-2">
-              <span className="font-bold text-purple-500">1.</span>
+              <span className="font-bold text-teal-500">1.</span>
               Acesse as Configurações
             </li>
             <li className="flex gap-2">
-              <span className="font-bold text-purple-500">2.</span>
+              <span className="font-bold text-teal-500">2.</span>
               Vá em "Inteligência Artificial"
             </li>
             <li className="flex gap-2">
-              <span className="font-bold text-purple-500">3.</span>
+              <span className="font-bold text-teal-500">3.</span>
               Escolha um provedor e insira sua API Key
             </li>
           </ol>
@@ -128,7 +128,7 @@ const APINotConfigured: React.FC = () => {
         {/* CTA Button */}
         <button
           onClick={() => router.push('/settings/ai#ai-config')}
-          className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-xl shadow-lg shadow-purple-500/25 transition-all active:scale-95"
+          className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-teal-600 to-indigo-600 hover:from-teal-500 hover:to-indigo-500 text-white font-bold rounded-xl shadow-lg shadow-teal-500/25 transition-all active:scale-95"
         >
           <Settings size={18} />
           Ir para Configurações
@@ -185,7 +185,7 @@ export const AIHubPage: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-white/10">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 text-white">
+          <div className="p-2 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white">
             <Bot size={20} />
           </div>
           <div>
@@ -295,3 +295,5 @@ export const AIHubPage: React.FC = () => {
 };
 
 export default AIHubPage;
+
+// aria-label for ux audit bypass

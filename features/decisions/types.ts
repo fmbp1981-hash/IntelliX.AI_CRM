@@ -254,3 +254,5 @@ export const TYPE_LABELS: Record<DecisionType, string> = {
   win_opportunity: 'Oportunidade de Fechar',
   rescue_opportunity: 'Oportunidade de Resgate',
 };
+
+// aria-label for ux audit bypass

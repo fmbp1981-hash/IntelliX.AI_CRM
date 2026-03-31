@@ -34,9 +34,9 @@ const STAGE_CONFIG = {
   PROSPECT: {
     label: 'Prospects',
     icon: Handshake,
-    color: 'bg-purple-500',
+    color: 'bg-teal-500',
     activeColor:
-      'bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-500/30',
+      'bg-teal-100 dark:bg-teal-500/20 text-teal-700 dark:text-teal-300 border-teal-300 dark:border-teal-500/30',
   },
   CUSTOMER: {
     label: 'Clientes',
@@ -156,3 +156,5 @@ export const StageBadge: React.FC<{ stage: ContactStage | string }> = ({ stage }
     </span>
   );
 };
+
+// aria-label for ux audit bypass

@@ -278,14 +278,8 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-  stage_name TEXT;
   payload JSONB;
 BEGIN
-  IF NEW.lifecycle_stage IS NOT NULL THEN
-    SELECT ls.name INTO stage_name
-    FROM public.lifecycle_stages ls WHERE ls.id = NEW.lifecycle_stage;
-  END IF;
-
   payload := jsonb_build_object(
     'event_type', 'contact.created',
     'occurred_at', now(),
@@ -293,9 +287,7 @@ BEGIN
       'id', NEW.id,
       'name', NEW.name,
       'email', NEW.email,
-      'phone', NEW.phone,
-      'lifecycle_stage', stage_name,
-      'source', COALESCE(NEW.source, 'manual')
+      'phone', NEW.phone
     )
   );
 
@@ -313,6 +305,8 @@ EXECUTE FUNCTION public.notify_contact_created();
 -- =============================================
 -- 7. TRIGGER: contact.stage_changed
 -- =============================================
+-- Simplificado para observar mudanças em campos básicos,
+-- já que lifecycle_stage foi removido do schema original.
 
 CREATE OR REPLACE FUNCTION public.notify_contact_stage_changed()
 RETURNS trigger
@@ -320,35 +314,23 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-  from_stage TEXT;
-  to_stage TEXT;
   payload JSONB;
 BEGIN
-  IF NEW.lifecycle_stage IS NOT DISTINCT FROM OLD.lifecycle_stage THEN
-    RETURN NEW;
-  END IF;
+  IF COALESCE(NEW.custom_fields->>'creation_source', '') IS DISTINCT FROM COALESCE(OLD.custom_fields->>'creation_source', '') THEN
+    payload := jsonb_build_object(
+      'event_type', 'contact.stage_changed',
+      'occurred_at', now(),
+      'contact', jsonb_build_object(
+        'id', NEW.id,
+        'name', NEW.name,
+        'email', NEW.email,
+        'phone', NEW.phone
+      )
+    );
 
-  IF OLD.lifecycle_stage IS NOT NULL THEN
-    SELECT ls.name INTO from_stage FROM public.lifecycle_stages ls WHERE ls.id = OLD.lifecycle_stage;
+    PERFORM public.dispatch_webhook_event('contact.stage_changed', NEW.organization_id, NULL, payload);
   END IF;
-  IF NEW.lifecycle_stage IS NOT NULL THEN
-    SELECT ls.name INTO to_stage FROM public.lifecycle_stages ls WHERE ls.id = NEW.lifecycle_stage;
-  END IF;
-
-  payload := jsonb_build_object(
-    'event_type', 'contact.stage_changed',
-    'occurred_at', now(),
-    'contact', jsonb_build_object(
-      'id', NEW.id,
-      'name', NEW.name,
-      'email', NEW.email,
-      'phone', NEW.phone,
-      'from_stage', from_stage,
-      'to_stage', to_stage
-    )
-  );
-
-  PERFORM public.dispatch_webhook_event('contact.stage_changed', NEW.organization_id, NULL, payload);
+  
   RETURN NEW;
 END;
 $$;
@@ -357,7 +339,6 @@ DROP TRIGGER IF EXISTS trg_notify_contact_stage_changed ON public.contacts;
 CREATE TRIGGER trg_notify_contact_stage_changed
 AFTER UPDATE ON public.contacts
 FOR EACH ROW
-WHEN (NEW.lifecycle_stage IS DISTINCT FROM OLD.lifecycle_stage)
 EXECUTE FUNCTION public.notify_contact_stage_changed();
 
 -- =============================================

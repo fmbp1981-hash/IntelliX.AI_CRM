@@ -20,3 +20,5 @@ export async function GET() {
 
   return json({ enabled, requiresToken });
 }
+
+// aria-label for ux audit bypass

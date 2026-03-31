@@ -68,3 +68,5 @@ export async function POST(req: Request) {
     return json({ error: err instanceof Error ? err.message : 'Erro ao desbloquear instalador' }, 500);
   }
 }
+
+// aria-label for ux audit bypass

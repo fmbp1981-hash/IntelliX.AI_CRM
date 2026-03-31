@@ -240,6 +240,12 @@ export interface Deal {
   customFields?: Record<string, any>; // Dynamic fields storage
   lastStageChangeDate?: string; // For stagnation tracking
   lossReason?: string; // For win/loss analysis
+  // Customer Intelligence fields
+  productName?: string;
+  productCategory?: string;
+  closingProbability?: number;
+  closingFactors?: import('./customer-intelligence').ClosingFactors;
+  sentiment?: import('./customer-intelligence').SentimentLevel;
 
   // @deprecated - Use clientCompanyId instead
   companyId?: string;

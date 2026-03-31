@@ -26,7 +26,7 @@ const CATEGORIES: { value: ScriptCategory; label: string; color: string }[] = [
     { value: 'followup', label: 'Follow-up', color: 'blue' },
     { value: 'objection', label: 'Objeções', color: 'orange' },
     { value: 'closing', label: 'Fechamento', color: 'green' },
-    { value: 'intro', label: 'Apresentação', color: 'purple' },
+    { value: 'intro', label: 'Apresentação', color: 'teal' },
     { value: 'rescue', label: 'Resgate', color: 'yellow' },
     { value: 'other', label: 'Outros', color: 'slate' },
 ];

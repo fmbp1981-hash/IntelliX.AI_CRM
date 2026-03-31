@@ -29,7 +29,7 @@ const InboxItemComponent: React.FC<InboxItemProps> = ({
   const getIconColor = () => {
     switch (activity.type) {
       case 'CALL': return 'text-blue-500';
-      case 'MEETING': return 'text-purple-500';
+      case 'MEETING': return 'text-teal-500';
       case 'EMAIL': return 'text-amber-500';
       default: return 'text-slate-400';
     }

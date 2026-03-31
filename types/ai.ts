@@ -100,6 +100,10 @@ export const CRMCallOptionsSchema = z.object({
     userId: z.string().optional(),
     userName: z.string().optional(),
     userRole: z.enum(['admin', 'vendedor']).optional(),
+    niche: z.string().optional(),
+
+    // Business Profile (from agent_configs.business_profile)
+    businessProfile: z.record(z.string(), z.any()).optional(),
 });
 
 // Infer type from schema for type-safety

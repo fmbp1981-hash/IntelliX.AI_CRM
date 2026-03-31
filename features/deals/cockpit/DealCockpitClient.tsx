@@ -49,7 +49,7 @@ const BRL_CURRENCY_FORMATTER = new Intl.NumberFormat('pt-BR', {
   maximumFractionDigits: 2,
 });
 
-type StageTone = 'blue' | 'violet' | 'amber' | 'green' | 'slate';
+type StageTone = 'blue' | 'emerald' | 'amber' | 'green' | 'slate';
 
 type Stage = {
   id: string;
@@ -318,8 +318,8 @@ function scriptCategoryChipClass(color: string): string {
       return 'bg-orange-500/15 text-orange-200 ring-1 ring-orange-500/20';
     case 'green':
       return 'bg-emerald-500/15 text-emerald-200 ring-1 ring-emerald-500/20';
-    case 'purple':
-      return 'bg-violet-500/15 text-violet-200 ring-1 ring-violet-500/20';
+    case 'teal':
+      return 'bg-emerald-500/15 text-emerald-200 ring-1 ring-emerald-500/20';
     case 'yellow':
       return 'bg-amber-500/15 text-amber-200 ring-1 ring-amber-500/20';
     default:
@@ -349,7 +349,7 @@ function formatCurrencyBRL(value: number): string {
 function stageToneFromBoardColor(color?: string): StageTone {
   const c = (color ?? '').toLowerCase();
   if (c.includes('emerald') || c.includes('green')) return 'green';
-  if (c.includes('violet') || c.includes('purple')) return 'violet';
+  if (c.includes('emerald') || c.includes('teal')) return 'emerald';
   if (c.includes('amber') || c.includes('yellow') || c.includes('orange')) return 'amber';
   if (c.includes('blue') || c.includes('sky') || c.includes('cyan')) return 'blue';
   return 'slate';
@@ -359,8 +359,8 @@ function toneToBg(tone: StageTone): string {
   switch (tone) {
     case 'blue':
       return 'bg-sky-500';
-    case 'violet':
-      return 'bg-violet-500';
+    case 'emerald':
+      return 'bg-emerald-500';
     case 'amber':
       return 'bg-amber-500';
     case 'green':
@@ -793,33 +793,33 @@ export default function DealCockpitClient({ dealId }: { dealId?: string }) {
 
     const boardInfo = selectedBoard
       ? {
-          id: selectedBoard.id,
-          name: selectedBoard.name,
-          description: selectedBoard.description,
-          wonStageId: selectedBoard.wonStageId,
-          lostStageId: selectedBoard.lostStageId,
-          stages: (selectedBoard.stages ?? []).map((s) => ({ id: s.id, label: s.label, color: s.color })),
-        }
+        id: selectedBoard.id,
+        name: selectedBoard.name,
+        description: selectedBoard.description,
+        wonStageId: selectedBoard.wonStageId,
+        lostStageId: selectedBoard.lostStageId,
+        stages: (selectedBoard.stages ?? []).map((s) => ({ id: s.id, label: s.label, color: s.color })),
+      }
       : undefined;
 
     const contactInfo = selectedContact
       ? {
-          id: selectedContact.id,
-          name: selectedContact.name,
-          role: selectedContact.role,
-          email: selectedContact.email,
-          phone: selectedContact.phone,
-          avatar: selectedContact.avatar,
-          status: selectedContact.status,
-          stage: selectedContact.stage,
-          source: selectedContact.source,
-          notes: selectedContact.notes,
-          lastInteraction: selectedContact.lastInteraction,
-          birthDate: selectedContact.birthDate,
-          lastPurchaseDate: selectedContact.lastPurchaseDate,
-          totalValue: selectedContact.totalValue,
-          clientCompanyId: selectedContact.clientCompanyId,
-        }
+        id: selectedContact.id,
+        name: selectedContact.name,
+        role: selectedContact.role,
+        email: selectedContact.email,
+        phone: selectedContact.phone,
+        avatar: selectedContact.avatar,
+        status: selectedContact.status,
+        stage: selectedContact.stage,
+        source: selectedContact.source,
+        notes: selectedContact.notes,
+        lastInteraction: selectedContact.lastInteraction,
+        birthDate: selectedContact.birthDate,
+        lastPurchaseDate: selectedContact.lastPurchaseDate,
+        totalValue: selectedContact.totalValue,
+        clientCompanyId: selectedContact.clientCompanyId,
+      }
       : undefined;
 
     const dealInfo = {
@@ -1266,9 +1266,8 @@ export default function DealCockpitClient({ dealId }: { dealId?: string }) {
           dealTitle: selectedDeal.title,
           type: 'CALL',
           title: data.title,
-          description: `${outcomeLabels[data.outcome]} - Duração: ${Math.floor(data.duration / 60)}min ${data.duration % 60}s${
-            data.notes ? `\n\n${data.notes}` : ''
-          }`,
+          description: `${outcomeLabels[data.outcome]} - Duração: ${Math.floor(data.duration / 60)}min ${data.duration % 60}s${data.notes ? `\n\n${data.notes}` : ''
+            }`,
           date: new Date().toISOString(),
           completed: true,
           user: actor,
@@ -1580,15 +1579,14 @@ export default function DealCockpitClient({ dealId }: { dealId?: string }) {
             >
               <div className="h-2 w-full rounded-full bg-white/10">
                 <div
-                  className={`h-2 rounded-full ${
-                    health.status === 'excellent'
-                      ? 'bg-emerald-500'
-                      : health.status === 'good'
-                        ? 'bg-green-500'
-                        : health.status === 'warning'
-                          ? 'bg-amber-500'
-                          : 'bg-rose-500'
-                  }`}
+                  className={`h-2 rounded-full ${health.status === 'excellent'
+                    ? 'bg-emerald-500'
+                    : health.status === 'good'
+                      ? 'bg-green-500'
+                      : health.status === 'warning'
+                        ? 'bg-amber-500'
+                        : 'bg-rose-500'
+                    }`}
                   style={{ width: `${health.score}%` }}
                 />
               </div>
@@ -1914,56 +1912,56 @@ export default function DealCockpitClient({ dealId }: { dealId?: string }) {
 
             <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-white/10 bg-white/3">
               <div className="flex-1 min-h-0 overflow-auto divide-y divide-white/10">
-                  {filteredTimelineItems.length === 0 ? (
-                    <div className="px-6 py-10 text-center">
-                      <div className="text-sm font-semibold text-slate-200">
-                        {timelineItems.length === 0 ? 'Sem atividades ainda' : 'Sem resultados'}
-                      </div>
-                      <div className="mt-2 text-xs text-slate-500">
-                        {timelineItems.length === 0
-                          ? 'Quando você registrar uma nota, ligação ou mudança de etapa, ela aparece aqui.'
-                          : 'Tente limpar busca e filtros para ver tudo novamente.'}
-                      </div>
-                      {timelineItems.length !== 0 ? (
-                        <div className="mt-4 flex items-center justify-center gap-2">
-                          <button
-                            type="button"
-                            className="rounded-xl bg-white px-4 py-2 text-xs font-semibold text-slate-900 hover:bg-slate-100"
-                            onClick={() => {
-                              setQuery('');
-                              setKindFilter('all');
-                              setShowSystemEvents(false);
-                            }}
-                          >
-                            Limpar filtros
-                          </button>
-                        </div>
-                      ) : null}
+                {filteredTimelineItems.length === 0 ? (
+                  <div className="px-6 py-10 text-center">
+                    <div className="text-sm font-semibold text-slate-200">
+                      {timelineItems.length === 0 ? 'Sem atividades ainda' : 'Sem resultados'}
                     </div>
-                  ) : (
-                    filteredTimelineItems.map((t) => (
-                      <div key={t.id} className="px-4 py-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-semibold text-slate-200">{t.title}</span>
-                              {t.subtitle ? (
-                                t.title === 'Moveu para' ? (
-                                  <Chip tone={t.tone === 'success' ? 'success' : t.tone === 'danger' ? 'danger' : 'neutral'}>{t.subtitle}</Chip>
-                                ) : (
-                                  <span className="truncate text-xs text-slate-400">{t.subtitle}</span>
-                                )
-                              ) : null}
-                            </div>
-                            {t.title !== 'Moveu para' && t.subtitle ? (
-                              <div className="mt-0.5 text-[11px] text-slate-500">{t.subtitle}</div>
+                    <div className="mt-2 text-xs text-slate-500">
+                      {timelineItems.length === 0
+                        ? 'Quando você registrar uma nota, ligação ou mudança de etapa, ela aparece aqui.'
+                        : 'Tente limpar busca e filtros para ver tudo novamente.'}
+                    </div>
+                    {timelineItems.length !== 0 ? (
+                      <div className="mt-4 flex items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          className="rounded-xl bg-white px-4 py-2 text-xs font-semibold text-slate-900 hover:bg-slate-100"
+                          onClick={() => {
+                            setQuery('');
+                            setKindFilter('all');
+                            setShowSystemEvents(false);
+                          }}
+                        >
+                          Limpar filtros
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
+                  filteredTimelineItems.map((t) => (
+                    <div key={t.id} className="px-4 py-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold text-slate-200">{t.title}</span>
+                            {t.subtitle ? (
+                              t.title === 'Moveu para' ? (
+                                <Chip tone={t.tone === 'success' ? 'success' : t.tone === 'danger' ? 'danger' : 'neutral'}>{t.subtitle}</Chip>
+                              ) : (
+                                <span className="truncate text-xs text-slate-400">{t.subtitle}</span>
+                              )
                             ) : null}
                           </div>
-                          <div className="shrink-0 text-[11px] text-slate-500">{t.at}</div>
+                          {t.title !== 'Moveu para' && t.subtitle ? (
+                            <div className="mt-0.5 text-[11px] text-slate-500">{t.subtitle}</div>
+                          ) : null}
                         </div>
+                        <div className="shrink-0 text-[11px] text-slate-500">{t.at}</div>
                       </div>
-                    ))
-                  )}
+                    </div>
+                  ))
+                )}
               </div>
 
               <div className="border-t border-white/10 px-4 py-3">

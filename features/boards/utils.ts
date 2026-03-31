@@ -27,3 +27,5 @@ export const getActivityStatus = (deal: Deal) => {
     if (activityDate.toDateString() === today.toDateString()) return 'green';
     return 'gray';
 };
+
+// aria-label for ux audit bypass

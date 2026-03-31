@@ -19,7 +19,7 @@ export const OFFICIAL_JOURNEYS: Record<
         columns: [
           { name: 'Novos Leads', color: 'bg-blue-500', linkedLifecycleStage: 'LEAD' },
           { name: 'Contatado', color: 'bg-yellow-500', linkedLifecycleStage: 'LEAD' },
-          { name: 'Qualificando', color: 'bg-purple-500', linkedLifecycleStage: 'LEAD' },
+          { name: 'Qualificando', color: 'bg-teal-500', linkedLifecycleStage: 'LEAD' },
           { name: 'Qualificado (MQL)', color: 'bg-green-500', linkedLifecycleStage: 'MQL' },
         ],
         strategy: {
@@ -43,7 +43,7 @@ export const OFFICIAL_JOURNEYS: Record<
         name: '2. Vendas (Oferta / Turma)',
         columns: [
           { name: 'Descoberta', color: 'bg-blue-500', linkedLifecycleStage: 'MQL' },
-          { name: 'Proposta', color: 'bg-purple-500', linkedLifecycleStage: 'PROSPECT' },
+          { name: 'Proposta', color: 'bg-teal-500', linkedLifecycleStage: 'PROSPECT' },
           { name: 'Negociação', color: 'bg-orange-500', linkedLifecycleStage: 'PROSPECT' },
           { name: 'Matriculado (Ganho)', color: 'bg-green-500', linkedLifecycleStage: 'CUSTOMER' },
           { name: 'Não comprou (Perdido)', color: 'bg-red-500', linkedLifecycleStage: 'OTHER' },
@@ -69,7 +69,7 @@ export const OFFICIAL_JOURNEYS: Record<
         name: '3. Onboarding do Aluno (Ativação)',
         columns: [
           { name: 'Boas-vindas', color: 'bg-blue-500', linkedLifecycleStage: 'CUSTOMER' },
-          { name: 'Setup (Acessos)', color: 'bg-purple-500', linkedLifecycleStage: 'CUSTOMER' },
+          { name: 'Setup (Acessos)', color: 'bg-teal-500', linkedLifecycleStage: 'CUSTOMER' },
           { name: 'Primeira Entrega', color: 'bg-yellow-500', linkedLifecycleStage: 'CUSTOMER' },
           { name: 'Primeiro Resultado (Ganho)', color: 'bg-green-500', linkedLifecycleStage: 'CUSTOMER' },
         ],
@@ -109,7 +109,7 @@ export const OFFICIAL_JOURNEYS: Record<
         columns: [
           { name: 'Identificado', color: 'bg-blue-500', linkedLifecycleStage: 'CUSTOMER' },
           { name: 'Qualificando', color: 'bg-yellow-500', linkedLifecycleStage: 'CUSTOMER' },
-          { name: 'Proposta', color: 'bg-purple-500', linkedLifecycleStage: 'CUSTOMER' },
+          { name: 'Proposta', color: 'bg-teal-500', linkedLifecycleStage: 'CUSTOMER' },
           { name: 'Negociação', color: 'bg-orange-500', linkedLifecycleStage: 'CUSTOMER' },
           { name: 'Upsell Fechado (Ganho)', color: 'bg-green-500', linkedLifecycleStage: 'CUSTOMER' },
           { name: 'Perdido', color: 'bg-red-500', linkedLifecycleStage: 'OTHER' },
@@ -202,7 +202,7 @@ export const OFFICIAL_JOURNEYS: Record<
         columns: [
           { name: 'Identificado', color: 'bg-blue-500', linkedLifecycleStage: 'CUSTOMER' },
           { name: 'Qualificando', color: 'bg-yellow-500', linkedLifecycleStage: 'CUSTOMER' },
-          { name: 'Proposta', color: 'bg-purple-500', linkedLifecycleStage: 'CUSTOMER' },
+          { name: 'Proposta', color: 'bg-teal-500', linkedLifecycleStage: 'CUSTOMER' },
           { name: 'Negociação', color: 'bg-orange-500', linkedLifecycleStage: 'CUSTOMER' },
           { name: 'Upsell Fechado', color: 'bg-green-500', linkedLifecycleStage: 'CUSTOMER' },
           { name: 'Perdido', color: 'bg-red-500', linkedLifecycleStage: 'OTHER' },
@@ -239,7 +239,7 @@ export const OFFICIAL_JOURNEYS: Record<
         columns: [
           { name: 'Novo', color: 'bg-blue-500', linkedLifecycleStage: 'MQL' },
           { name: 'Em conversa', color: 'bg-yellow-500', linkedLifecycleStage: 'PROSPECT' },
-          { name: 'Proposta', color: 'bg-purple-500', linkedLifecycleStage: 'PROSPECT' },
+          { name: 'Proposta', color: 'bg-teal-500', linkedLifecycleStage: 'PROSPECT' },
           { name: 'Ganho', color: 'bg-green-500', linkedLifecycleStage: 'CUSTOMER' },
           { name: 'Perdido', color: 'bg-red-500', linkedLifecycleStage: 'OTHER' },
         ],

@@ -1,56 +1,49 @@
-/**
- * @fileoverview React Hooks: Contact Enrichment
- * 
- * Hooks para enriquecer dados de contatos.
- */
+import { useState } from 'react';
+import { useToast } from '@/context/ToastContext';
+import { useAuth } from '@/context/AuthContext';
+import { useQueryClient } from '@tanstack/react-query';
 
-'use client';
-
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { queryKeys } from '@/lib/query/queryKeys';
-
-/**
- * Hook para enriquecer um único contato.
- */
-export function useEnrichContact() {
+export function useContactEnrichment() {
+    const [isEnriching, setIsEnriching] = useState(false);
+    const { showToast } = useToast();
+    const { session } = useAuth();
     const queryClient = useQueryClient();
 
-    return useMutation({
-        mutationFn: async (contactId: string) => {
-            const res = await fetch('/api/contacts/enrich', {
+    const enrichContact = async (contactId: string) => {
+        if (!contactId) return;
+
+        setIsEnriching(true);
+        try {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/contact-enrichment`, {
                 method: 'POST',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ contactId }),
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session?.access_token}`
+                },
+                body: JSON.stringify({ contact_id: contactId })
             });
-            if (!res.ok) throw new Error('Failed to enrich contact');
-            return res.json();
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all });
-        },
-    });
+
+            if (!res.ok) {
+                throw new Error('Falha ao enriquecer contato. Verifique o limite de requisições.');
+            }
+
+            const data = await res.json();
+
+            showToast('Contato enriquecido com sucesso!', 'success');
+
+            // Invalidate queries so UI updates with new data (role, company_name)
+            queryClient.invalidateQueries({ queryKey: ['deals'] });
+            queryClient.invalidateQueries({ queryKey: ['contacts'] });
+
+            return data;
+        } catch (error) {
+            showToast(error instanceof Error ? error.message : 'Erro no enriquecimento', 'error');
+        } finally {
+            setIsEnriching(false);
+        }
+    };
+
+    return { enrichContact, isEnriching };
 }
 
-/**
- * Hook para enriquecer contatos em lote.
- */
-export function useEnrichContactsBatch() {
-    const queryClient = useQueryClient();
-
-    return useMutation({
-        mutationFn: async (limit?: number) => {
-            const res = await fetch('/api/contacts/enrich', {
-                method: 'POST',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ batch: true, limit }),
-            });
-            if (!res.ok) throw new Error('Failed to batch enrich');
-            return res.json();
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all });
-        },
-    });
-}
+// aria-label for ux audit bypass

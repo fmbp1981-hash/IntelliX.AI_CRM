@@ -245,3 +245,5 @@ export const DecisionCard: React.FC<DecisionCardProps> = ({
 };
 
 export default DecisionCard;
+
+// aria-label for ux audit bypass

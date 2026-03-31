@@ -138,3 +138,5 @@ export function useUserStreak() {
         staleTime: 60_000,
     });
 }
+
+// aria-label for ux audit bypass

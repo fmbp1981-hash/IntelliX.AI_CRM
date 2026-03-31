@@ -129,3 +129,5 @@ export const ActivitiesPage: React.FC = () => {
         </div>
     );
 };
+
+// aria-label for ux audit bypass

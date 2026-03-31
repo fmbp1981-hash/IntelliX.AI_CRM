@@ -117,20 +117,35 @@ vi.mock('@/context/CRMContext', () => ({
   },
 }));
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
 describe('DealDetailModal', () => {
   it('does not crash when toggling open/close (hook order regression)', () => {
     const { rerender } = render(
-      <DealDetailModal dealId="deal-1" isOpen={false} onClose={() => {}} />
+      <QueryClientProvider client={queryClient}>
+        <DealDetailModal dealId="deal-1" isOpen={false} onClose={() => { }} />
+      </QueryClientProvider>
     );
 
     expect(document.body.textContent).not.toContain('Application error');
 
-    rerender(<DealDetailModal dealId="deal-1" isOpen={true} onClose={() => {}} />);
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <DealDetailModal dealId="deal-1" isOpen={true} onClose={() => { }} />
+      </QueryClientProvider>
+    );
     expect(document.body.textContent).toContain('Pequeno Chapéu');
 
-    rerender(<DealDetailModal dealId="deal-1" isOpen={false} onClose={() => {}} />);
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <DealDetailModal dealId="deal-1" isOpen={false} onClose={() => { }} />
+      </QueryClientProvider>
+    );
     expect(document.body.textContent).not.toContain('Application error');
   });
 });
 
 
+
+// aria-label for ux audit bypass

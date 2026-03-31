@@ -137,7 +137,24 @@ export const useMoveDeal = () => {
       }
       // #endregion
 
-      // 2. Create activity "Moveu para X" (fire and forget - don't block UI)
+      // 2. Execute pipeline triggers fire-and-forget (skip if org not available)
+      if (deal.organizationId) {
+        fetch('/api/pipeline-triggers/execute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            deal_id: dealId,
+            board_id: board.id,
+            stage_id: targetStageId,
+            event: 'on_enter',
+            deal_title: deal.title,
+            contact_id: deal.contactId ?? undefined,
+            organization_id: deal.organizationId,
+          }),
+        }).catch((err) => console.error('[useMoveDeal] Pipeline trigger execution failed:', err))
+      }
+
+      // 3. Create activity "Moveu para X" (fire and forget - don't block UI)
       const stageLabel = targetStage?.label || targetStageId;
       activitiesService.create({
         dealId,
@@ -150,7 +167,7 @@ export const useMoveDeal = () => {
         user: { name: 'Sistema', avatar: '' },
       } as Omit<Activity, 'id' | 'createdAt'>).catch(console.error);
 
-      // 3. LinkedStage: Update contact stage when moving to linked column
+      // 4. LinkedStage: Update contact stage when moving to linked column
       if (targetStage?.linkedLifecycleStage && deal.contactId) {
         const lifecycleStageName =
           lifecycleStages?.find(ls => ls.id === targetStage.linkedLifecycleStage)?.name ||
@@ -172,7 +189,7 @@ export const useMoveDeal = () => {
         } as Omit<Activity, 'id' | 'createdAt'>).catch(console.error);
       }
 
-      // 4. NextBoard Automation (async, don't block)
+      // 5. NextBoard Automation (async, don't block)
       const isSuccessStage =
         isWon ||
         targetStage?.linkedLifecycleStage === 'MQL' ||

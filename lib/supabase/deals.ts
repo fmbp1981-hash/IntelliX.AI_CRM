@@ -100,6 +100,14 @@ export interface DbDeal {
   is_lost: boolean;
   /** Data de fechamento. */
   closed_at: string | null;
+  /** Nome do produto (Customer Intelligence). */
+  product_name?: string | null;
+  /** Categoria do produto (Customer Intelligence). */
+  product_category?: string | null;
+  /** Probabilidade de fechamento calculada (0-100). */
+  closing_probability?: number | null;
+  /** Fatores que compõem closing_probability. */
+  closing_factors?: Record<string, number> | null;
 }
 
 /**
@@ -172,6 +180,10 @@ const transformDeal = (db: DbDeal, items: DbDealItem[]): Deal => {
       })),
     owner: { name: 'Sem Dono', avatar: '' }, // Will be enriched later
     ownerId: db.owner_id || undefined,
+    productName: db.product_name || undefined,
+    productCategory: db.product_category || undefined,
+    closingProbability: db.closing_probability ?? undefined,
+    closingFactors: db.closing_factors ?? undefined,
   };
 };
 

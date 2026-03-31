@@ -27,7 +27,7 @@ interface InviteResult {
 const getAvatarProps = (email: string) => {
     const initials = email.substring(0, 2).toUpperCase();
     const colors = [
-        'from-violet-500 to-purple-600',
+        'from-emerald-500 to-teal-600',
         'from-blue-500 to-cyan-500',
         'from-emerald-500 to-teal-500',
         'from-orange-500 to-amber-500',

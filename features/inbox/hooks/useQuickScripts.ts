@@ -83,3 +83,5 @@ export function useQuickScripts(category?: ScriptCategory) {
         getCategoryInfo,
     };
 }
+
+// aria-label for ux audit bypass

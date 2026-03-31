@@ -128,7 +128,7 @@ export const BoardStrategyHeader: React.FC<BoardStrategyHeaderProps> = ({ board 
   return (
     <div className="relative mb-4 group/header z-20">
       {/* Background Glow Effect (Subtle) */}
-      <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-orange-500/5 rounded-xl blur-xl opacity-50 group-hover/header:opacity-100 transition-opacity duration-700"></div>
+      <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/5 via-teal-500/5 to-orange-500/5 rounded-xl blur-xl opacity-50 group-hover/header:opacity-100 transition-opacity duration-700"></div>
 
       <div className="relative px-5 py-3 bg-white dark:bg-[#0B1120] rounded-lg border border-slate-100 dark:border-white/5 shadow-sm transition-all duration-300 hover:shadow-md">
         {/* Edit Button - Only visible on hover */}
@@ -288,7 +288,7 @@ export const BoardStrategyHeader: React.FC<BoardStrategyHeaderProps> = ({ board 
                     <div className="space-y-1">
                       <label className="text-[10px] text-slate-400 font-medium">Nome</label>
                       <input
-                        className="w-full bg-transparent border-b border-slate-200 dark:border-white/10 py-1 text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:border-purple-500 transition-colors placeholder:text-slate-300"
+                        className="w-full bg-transparent border-b border-slate-200 dark:border-white/10 py-1 text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:border-teal-500 transition-colors placeholder:text-slate-300"
                         placeholder="Ex: Ana"
                         value={editedBoard.agentPersona?.name || ''}
                         onChange={e =>
@@ -302,7 +302,7 @@ export const BoardStrategyHeader: React.FC<BoardStrategyHeaderProps> = ({ board 
                     <div className="space-y-1">
                       <label className="text-[10px] text-slate-400 font-medium">Cargo</label>
                       <input
-                        className="w-full bg-transparent border-b border-slate-200 dark:border-white/10 py-1 text-xs text-slate-500 focus:outline-none focus:border-purple-500 transition-colors placeholder:text-slate-300"
+                        className="w-full bg-transparent border-b border-slate-200 dark:border-white/10 py-1 text-xs text-slate-500 focus:outline-none focus:border-teal-500 transition-colors placeholder:text-slate-300"
                         placeholder="Ex: Vendedora"
                         value={editedBoard.agentPersona?.role || ''}
                         onChange={e =>
@@ -317,7 +317,7 @@ export const BoardStrategyHeader: React.FC<BoardStrategyHeaderProps> = ({ board 
 
                   {/* Agent Behavior */}
                   <textarea
-                    className="w-full h-24 bg-transparent border border-slate-200 dark:border-white/10 rounded-lg p-3 text-xs text-slate-600 dark:text-slate-300 focus:outline-none focus:border-purple-500/50 resize-none transition-all"
+                    className="w-full h-24 bg-transparent border border-slate-200 dark:border-white/10 rounded-lg p-3 text-xs text-slate-600 dark:text-slate-300 focus:outline-none focus:border-teal-500/50 resize-none transition-all"
                     placeholder="Como o agente deve agir? (Tom de voz, postura...)"
                     value={editedBoard.agentPersona?.behavior || ''}
                     onChange={e =>
@@ -378,7 +378,7 @@ export const BoardStrategyHeader: React.FC<BoardStrategyHeaderProps> = ({ board 
               <div className="md:col-span-3 flex flex-col justify-center px-4 border-r border-slate-100 dark:border-white/5 relative">
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-2">
-                    <Bot size={12} className="text-purple-500" />
+                    <Bot size={12} className="text-teal-500" />
                     <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">
                       Agente
                     </span>
@@ -386,7 +386,7 @@ export const BoardStrategyHeader: React.FC<BoardStrategyHeaderProps> = ({ board 
                   {board.agentPersona && (
                     <button
                       onClick={() => setIsGlobalAIOpen(true)}
-                      className="text-[10px] font-bold text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 px-2 py-0.5 rounded flex items-center gap-1 transition-colors"
+                      className="text-[10px] font-bold text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/20 px-2 py-0.5 rounded flex items-center gap-1 transition-colors"
                     >
                       <MessageSquare size={12} /> Falar
                     </button>
@@ -394,7 +394,7 @@ export const BoardStrategyHeader: React.FC<BoardStrategyHeaderProps> = ({ board 
                 </div>
 
                 <div className="group/agent relative">
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-0.5 group-hover/agent:text-purple-400 transition-colors cursor-default truncate">
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-0.5 group-hover/agent:text-teal-400 transition-colors cursor-default truncate">
                     {board.agentPersona?.name}
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 font-medium truncate">
@@ -403,7 +403,7 @@ export const BoardStrategyHeader: React.FC<BoardStrategyHeaderProps> = ({ board 
 
                   {/* Tooltip for Agent Behavior */}
                   <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 hidden group-hover/agent:block w-80 p-4 bg-slate-900 text-slate-300 text-xs rounded-lg shadow-2xl z-[100] border border-slate-700 max-h-64 overflow-y-auto">
-                    <p className="font-semibold text-purple-300 mb-1">Comportamento</p>"
+                    <p className="font-semibold text-teal-300 mb-1">Comportamento</p>"
                     {board.agentPersona?.behavior}"
                   </div>
                 </div>

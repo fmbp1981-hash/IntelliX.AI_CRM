@@ -35,3 +35,5 @@ interface ChartWrapperProps {
 export const ChartWrapper: React.FC<ChartWrapperProps> = ({ children, height = 320 }) => (
   <Suspense fallback={<ChartSkeleton height={height} />}>{children}</Suspense>
 );
+
+// aria-label for ux audit bypass

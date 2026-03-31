@@ -47,7 +47,7 @@ const AI_STAGE_COLOR_PALETTE = [
   'bg-yellow-500',
   'bg-orange-500',
   'bg-red-500',
-  'bg-purple-500',
+  'bg-teal-500',
   'bg-pink-500',
   'bg-indigo-500',
   'bg-teal-500',
@@ -203,7 +203,7 @@ export const BoardCreationWizard: React.FC<BoardCreationWizardProps> = ({
       name: '6. Renovações (Assinatura)',
       columns: [
         { name: '180+ dias', color: 'bg-blue-500', linkedLifecycleStage: 'CUSTOMER' },
-        { name: '120 dias', color: 'bg-purple-500', linkedLifecycleStage: 'CUSTOMER' },
+        { name: '120 dias', color: 'bg-teal-500', linkedLifecycleStage: 'CUSTOMER' },
         { name: '90 dias', color: 'bg-yellow-500', linkedLifecycleStage: 'CUSTOMER' },
         { name: '60 dias', color: 'bg-orange-500', linkedLifecycleStage: 'CUSTOMER' },
         { name: '30 dias', color: 'bg-orange-500', linkedLifecycleStage: 'CUSTOMER' },
@@ -993,7 +993,7 @@ export const BoardCreationWizard: React.FC<BoardCreationWizardProps> = ({
                       onClick={() => setStep('ai-input')}
                       className="mt-4 w-full relative overflow-hidden p-1 rounded-2xl group transition-all hover:shadow-lg hover:shadow-primary-500/20"
                     >
-                      <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 opacity-95 group-hover:opacity-100 transition-opacity" />
+                      <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 via-teal-500 to-pink-500 opacity-95 group-hover:opacity-100 transition-opacity" />
                       <div className="relative bg-white dark:bg-slate-900 rounded-[14px] px-4 py-3 flex items-center justify-center gap-3 transition-colors group-hover:bg-opacity-90 dark:group-hover:bg-opacity-90">
                         <Sparkles
                           size={18}
@@ -1376,7 +1376,7 @@ export const BoardCreationWizard: React.FC<BoardCreationWizardProps> = ({
                                 )}
                                 {index ===
                                   (getJourneyForInstall(selectedPlaybookId)?.boards ?? OFFICIAL_JOURNEYS[selectedPlaybookId].boards).length - 1 && (
-                                    <span className="px-2.5 py-1 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 text-[10px] font-bold uppercase tracking-wide">
+                                    <span className="px-2.5 py-1 rounded-full bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 text-[10px] font-bold uppercase tracking-wide">
                                       Fim
                                     </span>
                                   )}

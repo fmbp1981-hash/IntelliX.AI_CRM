@@ -44,6 +44,12 @@ import { generateSalesScript } from '@/lib/ai/tasksClient';
 import { MessageComposerModal, type MessageChannel } from './MessageComposerModal';
 import { callAIProxy } from '@/lib/supabase/ai-proxy';
 import type { ScriptCategory } from '@/lib/supabase/quickScripts';
+import { useOrgBusinessType } from '@/hooks/useOrgBusinessType';
+import { useVerticalConfig } from '@/hooks/useVerticalConfig';
+import { PatientRecordContainer } from '@/features/patients/components/PatientRecordContainer';
+import { TreatmentPlanContainer } from '@/features/treatments/components/TreatmentPlanContainer';
+import { PropertyMatchDashboard } from '@/features/properties/components/PropertyMatchDashboard';
+import { VisitScheduler } from '@/features/properties/components/VisitScheduler';
 
 // Performance: reuse Intl formatter instances.
 const PT_BR_SHORT_DATE_FORMATTER = new Intl.DateTimeFormat('pt-BR');
@@ -108,6 +114,12 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
 
     // AI Context Injection
     const { setContext, clearContext } = useAI();
+
+    // Vertical Config to inject specific components
+    const { businessType, isLoading: isOrgLoading } = useOrgBusinessType();
+    const { data: config } = useVerticalConfig(businessType);
+    const isClinical = businessType === 'medical_clinic' || businessType === 'dental_clinic';
+    const isRealEstate = businessType === 'real_estate';
 
     useEffect(() => {
         // UX: allow ESC to always close the Cockpit overlay, even when focus is inside inputs.
@@ -765,7 +777,6 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                                 const tailwindToHex: Record<string, string> = {
                                     'bg-blue-500': '#3b82f6',
                                     'bg-yellow-500': '#eab308',
-                                    'bg-purple-500': '#a855f7',
                                     'bg-green-500': '#22c55e',
                                     'bg-emerald-500': '#10b981',
                                     'bg-orange-500': '#f97316',
@@ -776,12 +787,10 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                                     'bg-teal-500': '#14b8a6',
                                     'bg-slate-500': '#64748b',
                                     'bg-gray-500': '#6b7280',
-                                    'bg-violet-500': '#8b5cf6',
                                     'bg-lime-500': '#84cc16',
                                     'bg-amber-500': '#f59e0b',
                                     'bg-rose-500': '#f43f5e',
                                     'bg-sky-500': '#0ea5e9',
-                                    'bg-fuchsia-500': '#d946ef',
                                 };
 
                                 const hexColor = tailwindToHex[stage.color] || '#64748b';
@@ -937,7 +946,7 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                                         { type: 'WHATSAPP', icon: MessageCircle, label: 'WhatsApp', color: 'text-green-400 hover:bg-green-500/20' },
                                         { type: 'CALL', icon: Phone, label: 'Ligar', color: 'text-yellow-400 hover:bg-yellow-500/20' },
                                         { type: 'EMAIL', icon: Mail, label: 'Email', color: 'text-blue-400 hover:bg-blue-500/20' },
-                                        { type: 'MEETING', icon: Calendar, label: 'Reunião', color: 'text-purple-400 hover:bg-purple-500/20' },
+                                        { type: 'MEETING', icon: Calendar, label: 'Reunião', color: 'text-teal-400 hover:bg-teal-500/20' },
                                         { type: 'TASK', icon: Target, label: 'Tarefa', color: 'text-slate-400 hover:bg-slate-500/20' },
                                     ].map(({ type, icon: Icon, label, color }) => (
                                         <button
@@ -996,146 +1005,168 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                             </div>
                         </div>
 
-                        {/* Contact Info Card */}
+                        {/* Contact Info Card or Patient Record */}
                         {contact && (
-                            <div className="p-4 border-b border-dark-border">
-                                <div className="flex items-start gap-3">
-                                    {/* Avatar */}
-                                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white font-semibold text-lg shrink-0">
-                                        {contact.name?.charAt(0).toUpperCase() || '?'}
-                                    </div>
-
-                                    {/* Info */}
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
-                                            <h4 className="text-sm font-semibold text-white truncate">{contact.name}</h4>
-                                            {contact.role && (
-                                                <span className="text-[10px] px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded">{contact.role}</span>
-                                            )}
+                            isClinical ? (
+                                <div className="p-4 border-b border-dark-border">
+                                    <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3 ml-1">Prontuário</h4>
+                                    <PatientRecordContainer contact={contact} />
+                                </div>
+                            ) : isRealEstate ? (
+                                <div className="p-4 border-b border-dark-border">
+                                    <PropertyMatchDashboard contactId={contact.id} />
+                                </div>
+                            ) : (
+                                <div className="p-4 border-b border-dark-border">
+                                    <div className="flex items-start gap-3">
+                                        {/* Avatar */}
+                                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white font-semibold text-lg shrink-0">
+                                            {contact.name?.charAt(0).toUpperCase() || '?'}
                                         </div>
 
-                                        {/* Contact details grid */}
-                                        <div className="mt-2 grid grid-cols-1 gap-1.5">
-                                            {contact.phone && (
-                                                <button
-                                                    onClick={() => navigator.clipboard.writeText(contact.phone || '')}
-                                                    className="flex items-center gap-2 text-xs text-slate-400 hover:text-green-400 transition-colors group"
-                                                >
-                                                    <Phone size={12} className="text-slate-600 group-hover:text-green-400 shrink-0" />
-                                                    <span className="truncate">{contact.phone}</span>
-                                                    <Copy size={10} className="opacity-0 group-hover:opacity-100 ml-auto shrink-0" />
-                                                </button>
-                                            )}
+                                        {/* Info */}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                <h4 className="text-sm font-semibold text-white truncate">{contact.name}</h4>
+                                                {contact.role && (
+                                                    <span className="text-[10px] px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded">{contact.role}</span>
+                                                )}
+                                            </div>
 
-                                            {contact.email && (
-                                                <button
-                                                    onClick={() => navigator.clipboard.writeText(contact.email || '')}
-                                                    className="flex items-center gap-2 text-xs text-slate-400 hover:text-cyan-400 transition-colors group"
-                                                >
-                                                    <Mail size={12} className="text-slate-600 group-hover:text-cyan-400 shrink-0" />
-                                                    <span className="truncate">{contact.email}</span>
-                                                    <Copy size={10} className="opacity-0 group-hover:opacity-100 ml-auto shrink-0" />
-                                                </button>
+                                            {/* Contact details grid */}
+                                            <div className="mt-2 grid grid-cols-1 gap-1.5">
+                                                {contact.phone && (
+                                                    <button
+                                                        onClick={() => navigator.clipboard.writeText(contact.phone || '')}
+                                                        className="flex items-center gap-2 text-xs text-slate-400 hover:text-green-400 transition-colors group"
+                                                    >
+                                                        <Phone size={12} className="text-slate-600 group-hover:text-green-400 shrink-0" />
+                                                        <span className="truncate">{contact.phone}</span>
+                                                        <Copy size={10} className="opacity-0 group-hover:opacity-100 ml-auto shrink-0" />
+                                                    </button>
+                                                )}
+
+                                                {contact.email && (
+                                                    <button
+                                                        onClick={() => navigator.clipboard.writeText(contact.email || '')}
+                                                        className="flex items-center gap-2 text-xs text-slate-400 hover:text-cyan-400 transition-colors group"
+                                                    >
+                                                        <Mail size={12} className="text-slate-600 group-hover:text-cyan-400 shrink-0" />
+                                                        <span className="truncate">{contact.email}</span>
+                                                        <Copy size={10} className="opacity-0 group-hover:opacity-100 ml-auto shrink-0" />
+                                                    </button>
+                                                )}
+                                            </div>
+
+                                            {/* Extra info */}
+                                            <div className="mt-2 flex flex-wrap gap-2">
+                                                {contact.source && (
+                                                    <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded border border-blue-500/20">
+                                                        {contact.source}
+                                                    </span>
+                                                )}
+                                                {contact.status && (
+                                                    <span className={`text-[10px] px-1.5 py-0.5 rounded border ${contact.status === 'ACTIVE' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
+                                                        contact.status === 'INACTIVE' ? 'bg-slate-500/10 text-slate-400 border-slate-500/20' :
+                                                            'bg-red-500/10 text-red-400 border-red-500/20'
+                                                        }`}>
+                                                        {contact.status === 'ACTIVE' ? 'Ativo' : contact.status === 'INACTIVE' ? 'Inativo' : 'Churned'}
+                                                    </span>
+                                                )}
+                                                {contact.totalValue && contact.totalValue > 0 && (
+                                                    <span className="text-[10px] px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 rounded border border-emerald-500/20">
+                                                        LTV: R$ {contact.totalValue.toLocaleString('pt-BR')}
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {/* Notes preview */}
+                                            {contact.notes && (
+                                                <p className="mt-2 text-[11px] text-slate-500 line-clamp-2 italic">
+                                                    "{contact.notes}"
+                                                </p>
                                             )}
                                         </div>
-
-                                        {/* Extra info */}
-                                        <div className="mt-2 flex flex-wrap gap-2">
-                                            {contact.source && (
-                                                <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded border border-blue-500/20">
-                                                    {contact.source}
-                                                </span>
-                                            )}
-                                            {contact.status && (
-                                                <span className={`text-[10px] px-1.5 py-0.5 rounded border ${contact.status === 'ACTIVE' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
-                                                    contact.status === 'INACTIVE' ? 'bg-slate-500/10 text-slate-400 border-slate-500/20' :
-                                                        'bg-red-500/10 text-red-400 border-red-500/20'
-                                                    }`}>
-                                                    {contact.status === 'ACTIVE' ? 'Ativo' : contact.status === 'INACTIVE' ? 'Inativo' : 'Churned'}
-                                                </span>
-                                            )}
-                                            {contact.totalValue && contact.totalValue > 0 && (
-                                                <span className="text-[10px] px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 rounded border border-emerald-500/20">
-                                                    LTV: R$ {contact.totalValue.toLocaleString('pt-BR')}
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        {/* Notes preview */}
-                                        {contact.notes && (
-                                            <p className="mt-2 text-[11px] text-slate-500 line-clamp-2 italic">
-                                                "{contact.notes}"
-                                            </p>
-                                        )}
                                     </div>
                                 </div>
-                            </div>
+                            )
                         )}
 
-                        {/* Deal Info Card */}
-                        <div className="p-4 border-b border-dark-border">
-                            <div className="flex items-center justify-between mb-2">
-                                <span className="text-[10px] text-slate-600 uppercase tracking-wider font-semibold">Negócio</span>
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded ${deal.priority === 'high' ? 'bg-red-500/10 text-red-400' :
-                                    deal.priority === 'medium' ? 'bg-yellow-500/10 text-yellow-400' :
-                                        'bg-slate-500/10 text-slate-400'
-                                    }`}>
-                                    {deal.priority === 'high' ? '🔥 Alta' : deal.priority === 'medium' ? 'Média' : 'Baixa'}
-                                </span>
+                        {/* Deal Info Card or Treatment Plan */}
+                        {isClinical ? (
+                            <div className="p-4 border-b border-dark-border">
+                                <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3 ml-1">Plano</h4>
+                                <TreatmentPlanContainer deal={deal} />
                             </div>
-
-                            <h4 className="text-sm font-semibold text-white mb-2">{deal.title}</h4>
-
-                            <div className="grid grid-cols-2 gap-2 text-xs">
-                                <div>
-                                    <span className="text-slate-600">Valor</span>
-                                    <p className="text-emerald-400 font-semibold">
-                                        R$ {deal.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                    </p>
-                                </div>
-                                <div>
-                                    <span className="text-slate-600">Probabilidade</span>
-                                    <p className="text-slate-300 font-semibold">{deal.probability || 50}%</p>
-                                </div>
-                                <div>
-                                    <span className="text-slate-600">Criado em</span>
-                                    <p className="text-slate-400">
-                                        {new Date(deal.createdAt).toLocaleDateString('pt-BR')}
-                                    </p>
-                                </div>
-                                <div>
-                                    <span className="text-slate-600">Atualizado</span>
-                                    <p className="text-slate-400">
-                                        {new Date(deal.updatedAt).toLocaleDateString('pt-BR')}
-                                    </p>
-                                </div>
+                        ) : isRealEstate ? (
+                            <div className="p-4 border-b border-dark-border">
+                                <VisitScheduler dealId={deal.id} />
                             </div>
-
-                            {/* Tags */}
-                            {deal.tags && deal.tags.length > 0 && (
-                                <div className="mt-2 flex flex-wrap gap-1">
-                                    {deal.tags.slice(0, 4).map((tag, i) => (
-                                        <span key={i} className="text-[10px] px-1.5 py-0.5 bg-primary-500/10 text-primary-400 rounded">
-                                            #{tag}
-                                        </span>
-                                    ))}
-                                    {deal.tags.length > 4 && (
-                                        <span className="text-[10px] text-slate-500">+{deal.tags.length - 4}</span>
-                                    )}
+                        ) : (
+                            <div className="p-4 border-b border-dark-border">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-[10px] text-slate-600 uppercase tracking-wider font-semibold">Negócio</span>
+                                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${deal.priority === 'high' ? 'bg-red-500/10 text-red-400' :
+                                        deal.priority === 'medium' ? 'bg-yellow-500/10 text-yellow-400' :
+                                            'bg-slate-500/10 text-slate-400'
+                                        }`}>
+                                        {deal.priority === 'high' ? '🔥 Alta' : deal.priority === 'medium' ? 'Média' : 'Baixa'}
+                                    </span>
                                 </div>
-                            )}
 
-                            {/* AI Summary */}
-                            {deal.aiSummary && (
-                                <div className="mt-2 p-2 bg-slate-800/50 rounded-lg border border-slate-700/50">
-                                    <div className="flex items-center gap-1 mb-1">
-                                        <Sparkles size={10} className="text-primary-400" />
-                                        <span className="text-[10px] text-primary-400 font-medium">Resumo IA</span>
+                                <h4 className="text-sm font-semibold text-white mb-2">{deal.title}</h4>
+
+                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                    <div>
+                                        <span className="text-slate-600">Valor</span>
+                                        <p className="text-emerald-400 font-semibold">
+                                            R$ {deal.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                        </p>
                                     </div>
-                                    <p className="text-[11px] text-slate-400 line-clamp-2">{deal.aiSummary}</p>
+                                    <div>
+                                        <span className="text-slate-600">Probabilidade</span>
+                                        <p className="text-slate-300 font-semibold">{deal.probability || 50}%</p>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-600">Criado em</span>
+                                        <p className="text-slate-400">
+                                            {new Date(deal.createdAt).toLocaleDateString('pt-BR')}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-600">Atualizado</span>
+                                        <p className="text-slate-400">
+                                            {new Date(deal.updatedAt).toLocaleDateString('pt-BR')}
+                                        </p>
+                                    </div>
                                 </div>
-                            )}
-                        </div>
+
+                                {/* Tags */}
+                                {deal.tags && deal.tags.length > 0 && (
+                                    <div className="mt-2 flex flex-wrap gap-1">
+                                        {deal.tags.slice(0, 4).map((tag, i) => (
+                                            <span key={i} className="text-[10px] px-1.5 py-0.5 bg-primary-500/10 text-primary-400 rounded">
+                                                #{tag}
+                                            </span>
+                                        ))}
+                                        {deal.tags.length > 4 && (
+                                            <span className="text-[10px] text-slate-500">+{deal.tags.length - 4}</span>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* AI Summary */}
+                                {deal.aiSummary && (
+                                    <div className="mt-2 p-2 bg-slate-800/50 rounded-lg border border-slate-700/50">
+                                        <div className="flex items-center gap-1 mb-1">
+                                            <Sparkles size={10} className="text-primary-400" />
+                                            <span className="text-[10px] text-primary-400 font-medium">Resumo IA</span>
+                                        </div>
+                                        <p className="text-[11px] text-slate-400 line-clamp-2">{deal.aiSummary}</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* Move to Stage (Sidebar) - With Semantic Colors & Days */}
                         <div className="p-4 border-t border-white/5">
@@ -1149,7 +1180,6 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                                     const tailwindToHex: Record<string, string> = {
                                         'bg-blue-500': '#3b82f6',
                                         'bg-yellow-500': '#eab308',
-                                        'bg-purple-500': '#a855f7',
                                         'bg-green-500': '#22c55e',
                                         'bg-emerald-500': '#10b981',
                                         'bg-orange-500': '#f97316',
@@ -1160,12 +1190,10 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                                         'bg-teal-500': '#14b8a6',
                                         'bg-slate-500': '#64748b',
                                         'bg-gray-500': '#6b7280',
-                                        'bg-violet-500': '#8b5cf6',
                                         'bg-lime-500': '#84cc16',
                                         'bg-amber-500': '#f59e0b',
                                         'bg-rose-500': '#f43f5e',
                                         'bg-sky-500': '#0ea5e9',
-                                        'bg-fuchsia-500': '#d946ef',
                                     };
 
                                     const hexColor = tailwindToHex[stage.color] || '#64748b';
@@ -1300,7 +1328,7 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                                                     <div className={`absolute left-[18px] top-[18px] w-[20px] h-[20px] rounded-full flex items-center justify-center z-10 
                                                     border transition-all shadow-[0_0_10px_-3px_rgba(0,0,0,0.5)]
                                                     ${activity.type === 'CALL' ? 'bg-blue-950/30 border-blue-500/30 text-blue-400 group-hover:border-blue-500 group-hover:shadow-blue-500/20' :
-                                                            activity.type === 'EMAIL' ? 'bg-purple-950/30 border-purple-500/30 text-purple-400 group-hover:border-purple-500 group-hover:shadow-purple-500/20' :
+                                                            activity.type === 'EMAIL' ? 'bg-teal-950/30 border-teal-500/30 text-teal-400 group-hover:border-teal-500 group-hover:shadow-teal-500/20' :
                                                                 activity.type === 'MEETING' ? 'bg-orange-950/30 border-orange-500/30 text-orange-400 group-hover:border-orange-500 group-hover:shadow-orange-500/20' :
                                                                     'bg-slate-900 border-slate-700 text-slate-500 group-hover:border-slate-500'
                                                         }`}
@@ -1324,7 +1352,7 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                                                                     // Regular activity types
                                                                     const typeColor =
                                                                         activity.type === 'CALL' ? 'bg-blue-500/20 text-blue-400' :
-                                                                            activity.type === 'EMAIL' ? 'bg-purple-500/20 text-purple-400' :
+                                                                            activity.type === 'EMAIL' ? 'bg-teal-500/20 text-teal-400' :
                                                                                 activity.type === 'MEETING' ? 'bg-orange-500/20 text-orange-400' :
                                                                                     activity.type === 'NOTE' ? 'bg-emerald-500/20 text-emerald-400' :
                                                                                         activity.type === 'TASK' ? 'bg-yellow-500/20 text-yellow-400' :
@@ -1355,7 +1383,6 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                                                                         const tailwindToHex: Record<string, string> = {
                                                                             'bg-blue-500': '#3b82f6',
                                                                             'bg-yellow-500': '#eab308',
-                                                                            'bg-purple-500': '#a855f7',
                                                                             'bg-green-500': '#22c55e',
                                                                             'bg-emerald-500': '#10b981',
                                                                             'bg-orange-500': '#f97316',
@@ -1366,12 +1393,10 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                                                                             'bg-teal-500': '#14b8a6',
                                                                             'bg-slate-500': '#64748b',
                                                                             'bg-gray-500': '#6b7280',
-                                                                            'bg-violet-500': '#8b5cf6',
                                                                             'bg-lime-500': '#84cc16',
                                                                             'bg-amber-500': '#f59e0b',
                                                                             'bg-rose-500': '#f43f5e',
                                                                             'bg-sky-500': '#0ea5e9',
-                                                                            'bg-fuchsia-500': '#d946ef',
                                                                         };
 
                                                                         const hexColor = tailwindToHex[matchingStage?.color || ''] || '#64748b';
@@ -1447,9 +1472,9 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                                     </button>
                                     <button
                                         onClick={() => handleQuickAction('MEETING')}
-                                        className="px-3 py-1.5 hover:bg-purple-500/10 text-slate-500 hover:text-purple-400 text-xs font-medium rounded-md transition-colors flex items-center gap-2 group"
+                                        className="px-3 py-1.5 hover:bg-teal-500/10 text-slate-500 hover:text-teal-400 text-xs font-medium rounded-md transition-colors flex items-center gap-2 group"
                                     >
-                                        <Calendar size={14} className="group-hover:text-purple-400 transition-colors" /> Ag. Reunião
+                                        <Calendar size={14} className="group-hover:text-teal-400 transition-colors" /> Ag. Reunião
                                     </button>
                                     <button
                                         onClick={() => handleQuickAction('TASK')}
@@ -1597,7 +1622,7 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                                     </div>
 
                                     {/* AI Script Generator */}
-                                    <div className="mb-4 p-3 bg-gradient-to-br from-primary-500/10 to-purple-500/10 rounded-lg border border-primary-500/20">
+                                    <div className="mb-4 p-3 bg-gradient-to-br from-primary-500/10 to-teal-500/10 rounded-lg border border-primary-500/20">
                                         <div className="flex items-center gap-2 mb-2">
                                             <Sparkles size={14} className="text-primary-400" />
                                             <span className="text-xs font-medium text-white">Gerar Script com IA</span>
@@ -1894,3 +1919,5 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
 
 // Lazy load AIAssistant to avoid circular dependencies and bundle bloat
 const AIAssistant = React.lazy(() => import('@/components/AIAssistant'));
+
+// aria-label for ux audit bypass

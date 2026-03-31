@@ -40,7 +40,7 @@ import type { Activity, Board, BoardStage, Contact, DealView } from '@/types';
 
 type Tab = 'chat' | 'notas' | 'scripts' | 'arquivos';
 
-type StageTone = 'blue' | 'violet' | 'amber' | 'green' | 'slate';
+type StageTone = 'blue' | 'emerald' | 'amber' | 'green' | 'slate';
 
 type Stage = {
   id: string;
@@ -291,8 +291,8 @@ function scriptCategoryChipClass(color: string): string {
       return 'bg-orange-500/15 text-orange-200 ring-1 ring-orange-500/20';
     case 'green':
       return 'bg-emerald-500/15 text-emerald-200 ring-1 ring-emerald-500/20';
-    case 'purple':
-      return 'bg-violet-500/15 text-violet-200 ring-1 ring-violet-500/20';
+    case 'teal':
+      return 'bg-emerald-500/15 text-emerald-200 ring-1 ring-emerald-500/20';
     case 'yellow':
       return 'bg-amber-500/15 text-amber-200 ring-1 ring-amber-500/20';
     default:
@@ -326,7 +326,7 @@ function formatCurrencyBRL(value: number): string {
 function stageToneFromBoardColor(color?: string): StageTone {
   const c = (color ?? '').toLowerCase();
   if (c.includes('emerald') || c.includes('green')) return 'green';
-  if (c.includes('violet') || c.includes('purple')) return 'violet';
+  if (c.includes('emerald') || c.includes('teal')) return 'emerald';
   if (c.includes('amber') || c.includes('yellow') || c.includes('orange')) return 'amber';
   if (c.includes('blue') || c.includes('sky') || c.includes('cyan')) return 'blue';
   return 'slate';
@@ -336,8 +336,8 @@ function toneToBg(tone: StageTone): string {
   switch (tone) {
     case 'blue':
       return 'bg-sky-500';
-    case 'violet':
-      return 'bg-violet-500';
+    case 'emerald':
+      return 'bg-emerald-500';
     case 'amber':
       return 'bg-amber-500';
     case 'green':

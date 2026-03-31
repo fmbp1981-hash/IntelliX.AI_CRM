@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { useCRM } from '@/context/CRMContext';
 import { useAuth } from '@/context/AuthContext';
 import { Deal, Board, Contact, Company } from '@/types';
-import { X, Building2, User, Mail, Phone, AlertCircle, Loader2 } from 'lucide-react';
+import { X, Building2, User, Mail, Phone, AlertCircle, Loader2, LayoutTemplate } from 'lucide-react';
 import { DebugFillButton } from '@/components/debug/DebugFillButton';
 import { fakeDeal, fakeContact, fakeCompany } from '@/lib/debug';
 import { ContactSearchCombobox } from '@/components/ui/ContactSearchCombobox';
+import { useDealTemplates } from '../../hooks/useDealTemplates';
 
 interface CreateDealModalProps {
     isOpen: boolean;
@@ -36,7 +37,7 @@ export const CreateDealModal: React.FC<CreateDealModalProps> = ({
     // Estado para contato/empresa selecionados
     const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
     const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
-    
+
     // Estado para criação de novo contato
     const [isCreatingNew, setIsCreatingNew] = useState(false);
     const [newContactData, setNewContactData] = useState({
@@ -56,6 +57,10 @@ export const CreateDealModal: React.FC<CreateDealModalProps> = ({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // Deal Templates
+    const { data: templates = [] } = useDealTemplates(activeBoardId, true);
+    const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+
     const resetForm = () => {
         setSelectedContact(null);
         setSelectedCompany(null);
@@ -64,18 +69,33 @@ export const CreateDealModal: React.FC<CreateDealModalProps> = ({
         setDealData({ title: '', value: '' });
         setError(null);
         setIsSubmitting(false);
+        setSelectedTemplateId('');
+    };
+
+    const handleTemplateChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const templateId = e.target.value;
+        setSelectedTemplateId(templateId);
+        if (!templateId) return;
+        const template = templates.find(t => t.id === templateId);
+        if (template && template.defaults) {
+            setDealData(prev => ({
+                ...prev,
+                title: template.defaults.title_prefix || prev.title,
+                value: template.defaults.value !== undefined ? String(template.defaults.value) : prev.value
+            }));
+        }
     };
 
     const fillWithFakeData = () => {
         const deal = fakeDeal();
         const contact = fakeContact();
         const company = fakeCompany();
-        
+
         setDealData({
             title: deal.title,
             value: String(deal.value)
         });
-        
+
         setIsCreatingNew(true);
         setNewContactData({
             name: contact.name,
@@ -132,32 +152,35 @@ export const CreateDealModal: React.FC<CreateDealModalProps> = ({
                 (profile?.email || user?.email || '').split('@')[0] ||
                 'Eu';
 
+            const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
+            const templateDefaults = selectedTemplate?.defaults || {};
+
             const deal: Deal = {
                 id: crypto.randomUUID(),
                 title: dealData.title,
                 companyId: selectedCompany?.id || '',
                 contactId: selectedContact?.id || '',
                 boardId: activeBoardId || activeBoard.id,
-                ownerId: user?.id || '',
+                ownerId: templateDefaults.owner_id || user?.id || '',
                 value: Number(dealData.value) || 0,
                 items: [],
-                status: firstStage.id,
+                status: templateDefaults.stage_id || firstStage.id,
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 probability: 10,
-                priority: 'medium',
-                tags: ['Novo'],
+                priority: (templateDefaults as any).priority || 'medium',
+                tags: ['Novo', ...(templateDefaults.tags || [])],
                 owner: {
                     name: ownerName,
                     avatar: profile?.avatar_url || ''
                 },
-                customFields: {},
+                customFields: templateDefaults.custom_fields || {},
                 isWon: false,
                 isLost: false,
             };
 
             let result;
-            
+
             // Se selecionou contato existente
             if (selectedContact) {
                 result = await addDeal(deal, {
@@ -179,7 +202,7 @@ export const CreateDealModal: React.FC<CreateDealModalProps> = ({
                     }
                 });
             }
-            
+
             // Se retornou null, houve erro (já logado no console)
             if (result === null) {
                 setError('Já existe um negócio com este título para este contato. Altere o título ou selecione outro contato.');
@@ -217,7 +240,7 @@ export const CreateDealModal: React.FC<CreateDealModalProps> = ({
                         <X size={20} />
                     </button>
                 </div>
-                
+
                 <form onSubmit={handleCreateDeal} className="p-5 space-y-5">
                     {/* Contato - Tabs para escolher modo */}
                     <div>
@@ -230,29 +253,27 @@ export const CreateDealModal: React.FC<CreateDealModalProps> = ({
                                     <button
                                         type="button"
                                         onClick={() => setIsCreatingNew(false)}
-                                        className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
-                                            !isCreatingNew 
-                                                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' 
+                                        className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${!isCreatingNew
+                                                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
                                                 : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-                                        }`}
+                                            }`}
                                     >
                                         Buscar
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => setIsCreatingNew(true)}
-                                        className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
-                                            isCreatingNew 
-                                                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' 
+                                        className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${isCreatingNew
+                                                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
                                                 : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-                                        }`}
+                                            }`}
                                     >
                                         + Novo
                                     </button>
                                 </div>
                             )}
                         </div>
-                        
+
                         {/* Modo: Contato Selecionado */}
                         {selectedContact ? (
                             <div className="relative">
@@ -290,7 +311,7 @@ export const CreateDealModal: React.FC<CreateDealModalProps> = ({
                                         ✕
                                     </button>
                                 </div>
-                                
+
                                 {selectedCompany && (
                                     <div className="mt-2 flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-slate-800/50 rounded-lg text-sm">
                                         <Building2 size={14} className="text-slate-400" />
@@ -321,7 +342,7 @@ export const CreateDealModal: React.FC<CreateDealModalProps> = ({
                                         className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-primary-500"
                                     />
                                 </div>
-                                
+
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="relative">
                                         <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -333,7 +354,7 @@ export const CreateDealModal: React.FC<CreateDealModalProps> = ({
                                             className="w-full pl-10 pr-3 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-primary-500"
                                         />
                                     </div>
-                                    
+
                                     <div className="relative">
                                         <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                                         <input
@@ -345,7 +366,7 @@ export const CreateDealModal: React.FC<CreateDealModalProps> = ({
                                         />
                                     </div>
                                 </div>
-                                
+
                                 <div className="relative">
                                     <Building2 size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                                     <input
@@ -360,10 +381,30 @@ export const CreateDealModal: React.FC<CreateDealModalProps> = ({
                         )}
                     </div>
 
+                    {/* Template Selection */}
+                    {templates.length > 0 && (
+                        <div className="pt-3 border-t border-slate-100 dark:border-white/5">
+                            <h3 className="text-xs font-bold text-primary-500 uppercase mb-3">Template (Opcional)</h3>
+                            <div className="relative">
+                                <LayoutTemplate size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                <select
+                                    value={selectedTemplateId}
+                                    onChange={handleTemplateChange}
+                                    className="w-full pl-10 pr-8 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-primary-500 appearance-none"
+                                >
+                                    <option value="">Nenhum template</option>
+                                    {templates.map(t => (
+                                        <option key={t.id} value={t.id}>{t.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Dados do Negócio */}
                     <div className="pt-3 border-t border-slate-100 dark:border-white/5">
                         <h3 className="text-xs font-bold text-slate-400 uppercase mb-3">Dados do Negócio</h3>
-                        
+
                         <div className="space-y-3">
                             <div>
                                 <label className="block text-xs font-medium text-slate-500 mb-1">Nome do Negócio *</label>
@@ -376,7 +417,7 @@ export const CreateDealModal: React.FC<CreateDealModalProps> = ({
                                     onChange={e => setDealData(prev => ({ ...prev, title: e.target.value }))}
                                 />
                             </div>
-                            
+
                             <div>
                                 <label className="block text-xs font-medium text-slate-500 mb-1">Valor Estimado (R$)</label>
                                 <input
@@ -398,8 +439,8 @@ export const CreateDealModal: React.FC<CreateDealModalProps> = ({
                         </div>
                     )}
 
-                    <button 
-                        type="submit" 
+                    <button
+                        type="submit"
                         disabled={!hasContact || !dealData.title || isSubmitting}
                         className="w-full bg-primary-600 hover:bg-primary-500 disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-bold py-3 rounded-lg mt-2 shadow-lg shadow-primary-600/20 transition-all flex items-center justify-center gap-2"
                     >

@@ -126,7 +126,7 @@ export const quickScriptsService = {
             followup: { label: 'Follow-up', color: 'blue' },
             objection: { label: 'Objeções', color: 'orange' },
             closing: { label: 'Fechamento', color: 'green' },
-            intro: { label: 'Apresentação', color: 'purple' },
+            intro: { label: 'Apresentação', color: 'teal' },
             rescue: { label: 'Resgate', color: 'yellow' },
             other: { label: 'Outros', color: 'slate' },
         };

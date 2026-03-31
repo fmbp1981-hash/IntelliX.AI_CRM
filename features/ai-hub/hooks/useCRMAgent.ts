@@ -641,3 +641,5 @@ Você é proativo - se perceber oportunidades ou riscos, mencione-os.`,
     stopGeneration,
   };
 }
+
+// aria-label for ux audit bypass

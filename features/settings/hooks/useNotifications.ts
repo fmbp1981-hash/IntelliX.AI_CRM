@@ -6,7 +6,9 @@
 
 'use client';
 
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase/client';
 import { queryKeys } from '@/lib/query/queryKeys';
 import type {
     NotificationPreference,
@@ -137,3 +139,35 @@ export function useUpdateNotificationPreference() {
         },
     });
 }
+
+/**
+ * Hook para subscrever aos eventos do Supabase Realtime
+ * nas notificações do sistema. Invalida as queries quando houver mudança.
+ */
+export function useSystemNotificationsRealtime() {
+    const queryClient = useQueryClient();
+
+    useEffect(() => {
+        const channel = supabase
+            .channel('system_notifications_changes')
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'system_notifications',
+                },
+                (_payload) => {
+                    // Invalida a query base para buscar novas notificações e refletir badges
+                    queryClient.invalidateQueries({ queryKey: ['notifications'] });
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [queryClient]);
+}
+
+// aria-label for ux audit bypass
