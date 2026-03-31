@@ -1,5 +1,5 @@
 // lib/supabase/nurturing-suggestions.ts
-import { createClient } from './client'
+import { supabase } from './client'
 import type { NurturingSuggestion, NurturingStatus } from '@/types/customer-intelligence'
 
 export const nurturingSuggestionsService = {
@@ -8,7 +8,6 @@ export const nurturingSuggestionsService = {
     urgency?: string
     limit?: number
   }): Promise<NurturingSuggestion[]> {
-    const supabase = await createClient()
     let query = supabase
       .from('nurturing_suggestions')
       .select(`
@@ -36,7 +35,6 @@ export const nurturingSuggestionsService = {
   },
 
   async approve(id: string): Promise<void> {
-    const supabase = await createClient()
     const { error } = await supabase
       .from('nurturing_suggestions')
       .update({ status: 'approved', updated_at: new Date().toISOString() })
@@ -45,7 +43,6 @@ export const nurturingSuggestionsService = {
   },
 
   async dismiss(id: string): Promise<void> {
-    const supabase = await createClient()
     const { error } = await supabase
       .from('nurturing_suggestions')
       .update({ status: 'dismissed', updated_at: new Date().toISOString() })
@@ -54,7 +51,6 @@ export const nurturingSuggestionsService = {
   },
 
   async snooze(id: string, until: string): Promise<void> {
-    const supabase = await createClient()
     const { error } = await supabase
       .from('nurturing_suggestions')
       .update({
@@ -67,7 +63,6 @@ export const nurturingSuggestionsService = {
   },
 
   async markSent(id: string): Promise<void> {
-    const supabase = await createClient()
     const { error } = await supabase
       .from('nurturing_suggestions')
       .update({
@@ -80,7 +75,6 @@ export const nurturingSuggestionsService = {
   },
 
   async getPendingCount(): Promise<number> {
-    const supabase = await createClient()
     const { count, error } = await supabase
       .from('nurturing_suggestions')
       .select('*', { count: 'exact', head: true })

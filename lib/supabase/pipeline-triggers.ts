@@ -1,10 +1,9 @@
 // lib/supabase/pipeline-triggers.ts
-import { createClient } from './client'
+import { supabase } from './client'
 import type { PipelineTrigger, TriggerAction } from '@/types/customer-intelligence'
 
 export const pipelineTriggersService = {
   async listByBoard(boardId: string): Promise<PipelineTrigger[]> {
-    const supabase = await createClient()
     const { data, error } = await supabase
       .from('pipeline_triggers')
       .select('*, pipeline_stages(label)')
@@ -25,7 +24,6 @@ export const pipelineTriggersService = {
     trigger_event: string
     actions: TriggerAction[]
   }): Promise<PipelineTrigger> {
-    const supabase = await createClient()
     const { data, error } = await supabase
       .from('pipeline_triggers')
       .insert(trigger)
@@ -36,7 +34,6 @@ export const pipelineTriggersService = {
   },
 
   async update(id: string, updates: Partial<PipelineTrigger>): Promise<void> {
-    const supabase = await createClient()
     const { error } = await supabase
       .from('pipeline_triggers')
       .update({ ...updates, updated_at: new Date().toISOString() })
@@ -45,7 +42,6 @@ export const pipelineTriggersService = {
   },
 
   async delete(id: string): Promise<void> {
-    const supabase = await createClient()
     const { error } = await supabase
       .from('pipeline_triggers')
       .delete()
@@ -58,7 +54,6 @@ export const pipelineTriggersService = {
     stageId: string,
     event: 'on_enter' | 'on_exit'
   ): Promise<PipelineTrigger[]> {
-    const supabase = await createClient()
     const { data, error } = await supabase
       .from('pipeline_triggers')
       .select('*')
