@@ -422,8 +422,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             content: aiResponse.trim(),
             content_type: 'text',
             ai_model: aiSettings.modelId,
-            ai_tokens_input: usage?.promptTokens ?? null,
-            ai_tokens_output: usage?.completionTokens ?? null,
+            ai_tokens_input: usage?.inputTokens ?? null,
+            ai_tokens_output: usage?.outputTokens ?? null,
             ai_tools_used: [],
             is_internal_note: false,
         });
