@@ -11,7 +11,7 @@ const patchSchema = z.object({
   trigger_event: z.enum(['on_enter', 'on_exit']).optional(),
   actions: z.array(z.object({
     type: z.enum(['send_email', 'send_whatsapp', 'create_activity', 'notify_team', 'add_tag']),
-    config: z.record(z.unknown()),
+    config: z.record(z.string(), z.unknown()),
   })).optional(),
   active: z.boolean().optional(),
 })

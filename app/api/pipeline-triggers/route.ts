@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic'
 
 const triggerActionSchema = z.object({
   type: z.enum(['send_email', 'send_whatsapp', 'create_activity', 'notify_team', 'add_tag']),
-  config: z.record(z.unknown()),
+  config: z.record(z.string(), z.unknown()),
 })
 
 const createSchema = z.object({
