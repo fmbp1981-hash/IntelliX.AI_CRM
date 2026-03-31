@@ -121,20 +121,28 @@ async function resolveAISettings(
     supabase: ReturnType<typeof createStaticClient>,
     organizationId: string
 ): Promise<{ provider: string; modelId: string; apiKey: string } | null> {
-    const { data } = await supabase
+    const { data: rawData } = await supabase
         .from('organization_settings')
         .select('ai_provider, ai_model, ai_google_key, ai_openai_key, ai_anthropic_key')
         .eq('organization_id', organizationId)
         .single();
 
-    if (!data) return null;
+    if (!rawData) return null;
 
-    const provider: string = (data.ai_provider as string) ?? 'google';
-    const modelId: string = (data.ai_model as string) ?? 'gemini-2.0-flash-exp';
+    const data = rawData as unknown as {
+        ai_provider?: string;
+        ai_model?: string;
+        ai_google_key?: string;
+        ai_openai_key?: string;
+        ai_anthropic_key?: string;
+    };
+
+    const provider: string = data.ai_provider ?? 'google';
+    const modelId: string = data.ai_model ?? 'gemini-2.0-flash-exp';
     const apiKeyMap: Record<string, string | undefined> = {
-        google: data.ai_google_key as string | undefined,
-        openai: data.ai_openai_key as string | undefined,
-        anthropic: data.ai_anthropic_key as string | undefined,
+        google: data.ai_google_key,
+        openai: data.ai_openai_key,
+        anthropic: data.ai_anthropic_key,
     };
     const apiKey = apiKeyMap[provider] as string | undefined;
 
