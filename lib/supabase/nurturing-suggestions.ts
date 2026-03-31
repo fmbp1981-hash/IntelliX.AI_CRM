@@ -27,7 +27,7 @@ export const nurturingSuggestionsService = {
       contacts?: { name?: string; phone?: string } | null
       deals?: { title?: string } | null
     }) => ({
-      ...(row as NurturingSuggestion),
+      ...(row as unknown as NurturingSuggestion),
       contact_name: row.contacts?.name,
       contact_phone: row.contacts?.phone,
       deal_title: row.deals?.title,
