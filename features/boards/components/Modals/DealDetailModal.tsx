@@ -40,6 +40,7 @@ import {
 import { StageProgressBar } from '../StageProgressBar';
 import { ActivityRow } from '@/features/activities/components/ActivityRow';
 import { formatPriorityPtBr } from '@/lib/utils/priority';
+import { ContactIntelligencePanel } from '@/features/contacts/components/ContactIntelligencePanel';
 
 interface DealDetailModalProps {
   dealId: string | null;
@@ -673,6 +674,12 @@ export const DealDetailModal: React.FC<DealDetailModalProps> = ({ dealId, isOpen
                   </div>
                 </div>
               </div>
+
+              {deal.contactId && (
+                <div className="pt-4 border-t border-slate-100 dark:border-white/5">
+                  <ContactIntelligencePanel contactId={deal.contactId} />
+                </div>
+              )}
 
               <div className="pt-4 border-t border-slate-100 dark:border-white/5">
                 <h3 className="text-xs font-bold text-slate-400 uppercase mb-2">Detalhes</h3>

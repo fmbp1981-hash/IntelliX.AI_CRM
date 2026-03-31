@@ -20,6 +20,10 @@ export interface SegmentFilters {
     lifecycle_stage?: string[];
     vertical?: string;
     has_email?: boolean;
+    // Customer Intelligence segments
+    pipeline_stage?: { board_id: string; stage_ids: string[] };
+    reactivation?: { inactive_days: number };
+    ready_for_proposal?: { min_probability: number };
 }
 
 export interface EmailTemplate {
@@ -284,6 +288,58 @@ export async function resolveSegment(
     if (filters.tags?.length) {
         // Contatos que têm qualquer uma das tags (overlap com array Postgres)
         query = query.overlaps('tags', filters.tags);
+    }
+
+    // Pipeline stage segment — contacts with active deals in specific stages
+    if (filters.pipeline_stage) {
+        const { board_id, stage_ids } = filters.pipeline_stage;
+        const { data: dealContacts } = await supabase
+            .from('deals')
+            .select('contact_id')
+            .eq('board_id', board_id)
+            .in('status', stage_ids)
+            .eq('is_won', false)
+            .eq('is_lost', false);
+        if (!dealContacts?.length) return [];
+        const contactIds = [...new Set(dealContacts.map((d: { contact_id: string }) => d.contact_id))];
+        query = query.in('id', contactIds);
+    }
+
+    // Reactivation segment — contacts whose last purchase/deal was before cutoff
+    if (filters.reactivation) {
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - filters.reactivation.inactive_days);
+        const cutoffISO = cutoff.toISOString();
+        // Get contacts that have deals, but last deal was before cutoff
+        const { data: recentDeals } = await supabase
+            .from('deals')
+            .select('contact_id')
+            .eq('organization_id', organizationId)
+            .gte('updated_at', cutoffISO);
+        const recentContactIds = new Set((recentDeals ?? []).map((d: { contact_id: string }) => d.contact_id));
+        const { data: anyDeals } = await supabase
+            .from('deals')
+            .select('contact_id')
+            .eq('organization_id', organizationId);
+        const inactiveIds = (anyDeals ?? [])
+            .map((d: { contact_id: string }) => d.contact_id)
+            .filter((id: string) => !recentContactIds.has(id));
+        if (!inactiveIds.length) return [];
+        query = query.in('id', [...new Set(inactiveIds)]);
+    }
+
+    // Ready for proposal segment — contacts with deals having high closing probability
+    if (filters.ready_for_proposal) {
+        const { data: highProbDeals } = await supabase
+            .from('deals')
+            .select('contact_id')
+            .eq('organization_id', organizationId)
+            .gte('closing_probability', filters.ready_for_proposal.min_probability)
+            .eq('is_won', false)
+            .eq('is_lost', false);
+        if (!highProbDeals?.length) return [];
+        const contactIds = [...new Set(highProbDeals.map((d: { contact_id: string }) => d.contact_id))];
+        query = query.in('id', contactIds);
     }
 
     const { data, error } = await query;

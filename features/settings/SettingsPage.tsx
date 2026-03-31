@@ -12,9 +12,9 @@ import { AICenterSettings } from './AICenterSettings';
 
 import { UsersPage } from './UsersPage';
 import { useAuth } from '@/context/AuthContext';
-import { Settings as SettingsIcon, Users, Database, Sparkles, Plug, Package, Bell, RotateCcw, BarChart3, FileText, MessageSquare, Building2, Mail } from 'lucide-react';
+import { Settings as SettingsIcon, Users, Database, Sparkles, Plug, Package, Bell, RotateCcw, BarChart3, FileText, MessageSquare, Building2, Mail, Zap } from 'lucide-react';
 
-type SettingsTab = 'general' | 'products' | 'integrations' | 'ai' | 'business-profile' | 'notifications' | 'sequences' | 'templates' | 'followups' | 'reports' | 'campaigns' | 'data' | 'users';
+type SettingsTab = 'general' | 'products' | 'integrations' | 'ai' | 'business-profile' | 'notifications' | 'sequences' | 'templates' | 'followups' | 'reports' | 'campaigns' | 'automations' | 'data' | 'users';
 
 interface GeneralSettingsProps {
   hash?: string;
@@ -257,6 +257,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ tab: initialTab }) => {
     { id: 'templates' as SettingsTab, name: 'Templates', icon: FileText },
     { id: 'followups' as SettingsTab, name: 'Follow-ups', icon: MessageSquare },
     { id: 'campaigns' as SettingsTab, name: 'Campanhas', icon: Mail },
+    { id: 'automations' as SettingsTab, name: 'Automações', icon: Zap },
     { id: 'reports' as SettingsTab, name: 'Relatórios', icon: BarChart3 },
     { id: 'data' as SettingsTab, name: 'Dados', icon: Database },
     ...(profile?.role === 'admin' ? [{ id: 'users' as SettingsTab, name: 'Equipe', icon: Users }] : []),
@@ -329,6 +330,16 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ tab: initialTab }) => {
         return (
           <React.Suspense fallback={<div className="py-12 text-center text-slate-400">Carregando...</div>}>
             <div className="pb-10"><CampaignsManager /></div>
+          </React.Suspense>
+        );
+      }
+      case 'automations': {
+        const PipelineTriggersBuilder = React.lazy(
+          () => import('./components/PipelineTriggersBuilder').then(m => ({ default: m.PipelineTriggersBuilder }))
+        );
+        return (
+          <React.Suspense fallback={<div className="py-12 text-center text-slate-400">Carregando...</div>}>
+            <div className="pb-10"><PipelineTriggersBuilder /></div>
           </React.Suspense>
         );
       }
