@@ -1,8 +1,8 @@
 # PROJECT_REGISTRY.md — NossoCRM (IntelliX.AI_CRM)
 
 > **Documento Vivo:** Atualizado a cada modificação significativa.
-> **Última Atualização:** 28 de Março de 2026 (BRT)
-> **Versão do Registro:** 2.6
+> **Última Atualização:** 31 de Março de 2026 (BRT)
+> **Versão do Registro:** 2.7
 
 ---
 
@@ -249,22 +249,24 @@ IntelliX.AI_CRM/
 font-family: 'DM Sans' (body), 'DM Mono' (code)
 ```
 
-### 4.8 Customer Intelligence Profile + AI Nurturing (PLANEJADO — branch `feature/nossoagent`)
+### 4.8 Customer Intelligence Profile + AI Nurturing (branch `feature/nossoagent`)
 
 > **Spec:** `docs/superpowers/specs/2026-03-28-customer-intelligence-design.md`
-> **Status:** 🔵 Design aprovado, implementação pendente (8 fases)
+> **Plano:** `docs/superpowers/plans/2026-03-29-customer-intelligence.md` (15 tasks)
+> **Status:** ✅ **COMPLETO** — todas as 8 fases implementadas (31/03/2026)
 
 **Objetivo:** Sistema de perfil comportamental de clientes com IA para nurturing personalizado e reativação de leads frios.
 
-| Subsistema | Status | Descrição |
+| Fase | Status | Arquivos Principais |
 |---|---|---|
-| **Contact Behavioral Profile** | ⏳ Fase 1 | Tabela `contact_behavioral_profile` — ticket médio, RFM score, produtos preferidos, sazonalidade, risco de churn |
-| **Sentiment Analysis** | ⏳ Fase 3 | Análise de sentimento por mensagem no Agent Engine (Step 14.5), flags visuais no Kanban |
-| **Closing Probability** | ⏳ Fase 3 | % de fechamento por deal (5 fatores: sentimento, engajamento, qualificação, velocidade, RFM) |
-| **AI Nurturing Engine** | ⏳ Fase 5 | Geração de sugestões (Modo B: humano aprova / Modo A: automático opt-in) |
-| **Nurturing Dashboard** | ⏳ Fase 6 | Página `/nutricao` — aprovar/editar/dispensar sugestões por urgência |
-| **Campaign Segmentation by Stage** | ⏳ Fase 7 | Segmentos: pipeline_stage, reactivation, ready_for_proposal |
-| **Pipeline Triggers** | ⏳ Fase 8 | Ações automáticas ao entrar em stage: email, WhatsApp, tarefa, notificação |
+| **1 — Schema** | ✅ Completo | `20260329000001_customer_intelligence.sql`, `20260329000002_nurturing_and_triggers.sql` |
+| **2 — Compute Engine** | ✅ Completo | `supabase/functions/compute-contact-profiles/index.ts`, pg_cron diário 03:00 UTC |
+| **3 — Sentiment + Closing Probability** | ✅ Completo | `lib/ai/sentiment.ts`, `lib/ai/closing-probability.ts`, Agent Engine Step 14.5 |
+| **4 — Kanban Visual + Contact Panel** | ✅ Completo | `DealCard` badges sentimento/probabilidade, `ContactIntelligencePanel` no DealDetailModal |
+| **5 — AI Nurturing Engine** | ✅ Completo | `supabase/functions/generate-nurturing-suggestions/index.ts`, Modo A/B, pg_cron 2x/dia |
+| **6 — Nurturing Dashboard** | ✅ Completo | `features/customer-intelligence/NurturingDashboardPage.tsx`, rota `/nutricao`, nav + prefetch |
+| **7 — Campaign Segmentation** | ✅ Completo | `lib/supabase/email-campaigns.ts` — segmentos `pipeline_stage`, `reactivation`, `ready_for_proposal` |
+| **8 — Pipeline Triggers** | ✅ Completo | `lib/supabase/pipeline-triggers.ts`, `app/api/pipeline-triggers/`, execute route no `useMoveDeal`, `PipelineTriggersBuilder` em Settings > Automações |
 
 **Tipos de sugestão de nurturing:**
 - 🔴 Reativação — cliente parado há > 45 dias
@@ -440,6 +442,27 @@ font-family: 'DM Sans' (body), 'DM Mono' (code)
 ---
 
 ## 11. Histórico de Alterações (Changelog)
+
+### 31/03/2026 (v2.7) — Customer Intelligence — Implementação Completa (15 Tasks)
+
+- **Branch:** `feature/nossoagent`
+- **Commit:** `f886284`
+- **O que mudou:**
+  - **Task 13 (Step 3):** `ContactIntelligencePanel` integrado no `DealDetailModal` — exibe RFM score, ticket médio, receita total, risco de churn, produtos preferidos, meses de pico e aviso de inatividade para deals com contato vinculado
+  - **Task 15 (UI):** `PipelineTriggersBuilder` criado em `features/settings/components/` — UI completa para criar/editar/deletar triggers por board/stage; aba "Automações" adicionada à SettingsPage
+  - **Task 15 (Engine):** Execute route `/api/pipeline-triggers/execute` integrado no `useMoveDeal` (fire-and-forget, event `on_enter`)
+  - **Task 12:** Segmentação de campanhas por stage — 3 novos segmentos (`pipeline_stage`, `reactivation`, `ready_for_proposal`) em `email-campaigns.ts`
+- **Arquivos criados/modificados:**
+  - `app/api/pipeline-triggers/execute/route.ts` (novo)
+  - `features/contacts/components/ContactIntelligencePanel.tsx` (novo)
+  - `features/settings/components/PipelineTriggersBuilder.tsx` (novo)
+  - `features/boards/components/Modals/DealDetailModal.tsx` (modificado)
+  - `features/settings/SettingsPage.tsx` (modificado — aba Automações)
+  - `lib/query/hooks/useMoveDeal.ts` (modificado — pipeline trigger call)
+  - `lib/supabase/email-campaigns.ts` (modificado — 3 novos segmentos)
+- **Status Customer Intelligence:** ✅ **TODAS AS 8 FASES CONCLUÍDAS**
+
+---
 
 ### 28/03/2026 (v2.6) — Customer Intelligence + Sentiment Analysis + AI Nurturing (Design Phase)
 
