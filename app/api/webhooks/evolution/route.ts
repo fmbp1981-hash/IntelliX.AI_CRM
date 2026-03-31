@@ -118,7 +118,8 @@ function buildAIModel(provider: string, modelId: string, apiKey: string) {
 
 /** Resolves the AI provider and api key from organization_settings. */
 async function resolveAISettings(
-    supabase: ReturnType<typeof createStaticClient>,
+    // Accept any Supabase-like client regardless of Database generic params
+    supabase: { from: (table: string) => any },
     organizationId: string
 ): Promise<{ provider: string; modelId: string; apiKey: string } | null> {
     const { data: rawData } = await supabase
