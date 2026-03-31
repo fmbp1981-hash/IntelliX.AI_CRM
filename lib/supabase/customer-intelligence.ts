@@ -4,8 +4,6 @@ import type {
   ContactBehavioralProfile,
   NurturingSuggestion,
   NurturingStatus,
-  PipelineTrigger,
-  TriggerEvent,
 } from '@/types/customer-intelligence'
 
 // ─── Contact Behavioral Profile ──────────────────────────────────────────────
@@ -116,80 +114,3 @@ export const nurturingService = {
   },
 }
 
-// ─── Pipeline Triggers ────────────────────────────────────────────────────────
-
-export interface PipelineTriggerInput {
-  board_id: string
-  stage_id: string
-  trigger_event: TriggerEvent
-  actions: PipelineTrigger['actions']
-  active?: boolean
-}
-
-export const pipelineTriggersService = {
-  async list(boardId?: string): Promise<PipelineTrigger[]> {
-    const supabase = createClient()
-    let query = supabase!
-      .from('pipeline_triggers')
-      .select(`
-        *,
-        board_stages(label)
-      `)
-      .order('created_at', { ascending: true })
-
-    if (boardId) query = query.eq('board_id', boardId)
-
-    const { data, error } = await query
-    if (error) throw error
-
-    return (data ?? []).map((row) => ({
-      ...row,
-      stage_label: row.board_stages?.label ?? null,
-    }))
-  },
-
-  async create(input: PipelineTriggerInput): Promise<PipelineTrigger> {
-    const supabase = createClient()
-    const { data, error } = await supabase!
-      .from('pipeline_triggers')
-      .insert({ ...input, active: input.active ?? true })
-      .select()
-      .single()
-    if (error) throw error
-    return data
-  },
-
-  async update(
-    id: string,
-    patch: Partial<PipelineTriggerInput & { active: boolean }>
-  ): Promise<void> {
-    const supabase = createClient()
-    const { error } = await supabase!
-      .from('pipeline_triggers')
-      .update({ ...patch, updated_at: new Date().toISOString() })
-      .eq('id', id)
-    if (error) throw error
-  },
-
-  async remove(id: string): Promise<void> {
-    const supabase = createClient()
-    const { error } = await supabase!
-      .from('pipeline_triggers')
-      .delete()
-      .eq('id', id)
-    if (error) throw error
-  },
-
-  async getByStage(boardId: string, stageId: string, event: TriggerEvent): Promise<PipelineTrigger[]> {
-    const supabase = createClient()
-    const { data, error } = await supabase!
-      .from('pipeline_triggers')
-      .select('*')
-      .eq('board_id', boardId)
-      .eq('stage_id', stageId)
-      .eq('trigger_event', event)
-      .eq('active', true)
-    if (error) throw error
-    return data ?? []
-  },
-}
