@@ -37,7 +37,7 @@ export async function PATCH(
     return NextResponse.json({ ok: true })
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return NextResponse.json({ error: err.errors }, { status: 400 })
+      return NextResponse.json({ error: err.issues }, { status: 400 })
     }
     console.error('[PATCH /api/pipeline-triggers/[id]]', err)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })

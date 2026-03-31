@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ executed })
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return NextResponse.json({ error: err.errors }, { status: 400 })
+      return NextResponse.json({ error: err.issues }, { status: 400 })
     }
     console.error('[POST /api/pipeline-triggers/execute]', err)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
