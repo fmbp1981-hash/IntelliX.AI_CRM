@@ -113,7 +113,7 @@ function TriggerRow({ trigger }: { trigger: PipelineTrigger }) {
     updateTrigger.mutate({ id: trigger.id, active: !trigger.active })
 
   const remove = () => {
-    if (confirm('Remover este trigger?')) deleteTrigger.mutate(trigger.id)
+    if (confirm('Remover este trigger?')) deleteTrigger.mutate({ id: trigger.id, boardId: trigger.board_id })
   }
 
   return (
