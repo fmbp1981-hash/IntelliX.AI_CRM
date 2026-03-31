@@ -404,7 +404,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             model,
             system: systemPrompt,
             messages: historyMessages,
-            maxTokens: agentConfig.max_tokens_per_response ?? 1024,
+            maxOutputTokens: agentConfig.max_tokens_per_response ?? 1024,
             temperature: agentConfig.ai_temperature ?? 0.7,
         });
 
