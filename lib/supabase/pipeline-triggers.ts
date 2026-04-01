@@ -13,7 +13,7 @@ export const pipelineTriggersService = {
     return (data ?? []).map((row: Record<string, unknown> & {
       pipeline_stages?: { label?: string } | null
     }) => ({
-      ...(row as PipelineTrigger),
+      ...(row as unknown as PipelineTrigger),
       stage_label: row.pipeline_stages?.label,
     }))
   },
